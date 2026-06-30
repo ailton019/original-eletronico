@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saídas - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .venda-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .produtos-lista {
+            background: var(--floral-white);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid rgba(204, 197, 185, 0.15);
+        }
+        
+        .carrinho {
+            background: var(--floral-white);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid rgba(204, 197, 185, 0.15);
+        }
+        
+        .produto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+            border-radius: var(--radius-sm);
+        }
+        
+        .produto-item:hover {
+            background: rgba(235, 94, 40, 0.06);
+            transform: translateX(4px);
+        }
+        
+        .produto-item:last-child {
+            border-bottom: none;
+        }
+        
+        .produto-info h4 {
+            margin: 0;
+            font-size: 14px;
+            color: var(--carbon-black);
+        }
+        
+        .produto-info small {
+            color: var(--gray);
+            font-size: 12px;
+        }
+        
+        .produto-preco {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 15px;
+        }
+        
+        .carrinho-item {
+            display: grid;
+            grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        .carrinho-item:last-child {
+            border-bottom: none;
+        }
+        
+        .carrinho-item input {
+            width: 70px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+        
+        .carrinho-item input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(235, 94, 40, 0.1);
+        }
+        
+        .total-venda {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border);
+        }
+        
+        .total-linha {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: var(--dark);
+        }
+        
+        .total-linha.total {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+        
+        .btn-remover {
+            background: var(--danger);
+            color: var(--floral-white);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-remover:hover {
+            background: #a00f1a;
+            transform: scale(1.05);
+        }
+        
+        .formas-pagamento {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .btn-pagamento {
+            padding: 10px 20px;
+            border: 2px solid var(--border);
+            background: var(--floral-white);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            color: var(--dark);
+            font-size: 13px;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .btn-pagamento:hover {
+            border-color: var(--primary);
+            background: rgba(235, 94, 40, 0.06);
+        }
+        
+        .btn-pagamento.selected {
+            background: var(--primary);
+            color: var(--floral-white);
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(235, 94, 40, 0.25);
+        }
+        
+        .btn-pagamento .badge-pagamento {
+            display: block;
+            font-size: 9px;
+            font-weight: 400;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+        
+        .search-cliente {
+            position: relative;
+        }
+        
+        .cliente-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--floral-white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        
+        .cliente-suggestion-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        
+        .cliente-suggestion-item:hover {
+            background: rgba(235, 94, 40, 0.06);
+        }
+        
+        .cliente-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        
+        .serial-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .serial-input input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .serial-input input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(235, 94, 40, 0.1);
+        }
+        
+        .btn-scan {
+            background: var(--info);
+            color: var(--floral-white);
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .btn-scan:hover {
+            background: #3a6a7a;
+        }
+        
+        .desconto-acrescimo {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .desconto-acrescimo .form-group {
+            flex: 1;
+        }
+        
+        .desconto-acrescimo .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .desconto-acrescimo .form-group input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(235, 94, 40, 0.1);
+        }
+        
+        /* Status de venda */
+        .status-estoque {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        
+        .status-normal {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-critico {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Ajustes de responsividade */
+        @media (max-width: 1024px) {
+            .venda-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .carrinho-item {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+            
+            .formas-pagamento {
+                gap: 8px;
+            }
+            
+            .btn-pagamento {
+                padding: 8px 14px;
+                font-size: 12px;
+                min-width: 80px;
+            }
+            
+            .desconto-acrescimo {
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .modal-content {
+                width: 98%;
+                max-height: 95vh;
+            }
+            
+            .carrinho-item {
+                font-size: 12px;
+            }
+            
+            .carrinho-item input {
+                width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html" class="active">📤 Saídas</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h1>📤 Vendas</h1>
+                    <button class="btn-primary" id="btnNovaVenda">+ Nova Venda</button>
+                </div>
+                
+                <div id="listaVendas" class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº Venda</th>
+                                <th>Data</th>
+                                <th>Cliente</th>
+                                <th>Total</th>
+                                <th>Forma Pagamento</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vendasTableBody">
+                            <tr><td colspan="7" style="text-align: center;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal Venda -->
+    <div id="modalVenda" class="modal">
+        <div class="modal-content" style="max-width: 1300px; width: 95%;">
+            <div class="modal-header">
+                <h2 id="modalTitle">Nova Venda</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="venda-container">
+                    <!-- Coluna Esquerda - Produtos -->
+                    <div class="produtos-lista">
+                        <h3>📦 Produtos Disponíveis</h3>
+                        <div class="filters" style="margin-bottom: 15px;">
+                            <input type="text" id="searchProdutoVenda" placeholder="🔍 Pesquisar por nome, código ou serial...">
+                        </div>
+                        <div id="produtosList" style="max-height: 500px; overflow-y: auto;">
+                            <div style="text-align: center; padding: 20px; color: var(--gray);">Carregando produtos...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Coluna Direita - Carrinho -->
+                    <div class="carrinho">
+                        <h3>🛒 Carrinho de Vendas</h3>
+                        
+                        <!-- Busca de Cliente -->
+                        <div class="form-group search-cliente">
+                            <label>Cliente</label>
+                            <input type="text" id="searchCliente" placeholder="🔍 Pesquisar por nome, documento ou código..." autocomplete="off">
+                            <div id="clienteSuggestions" class="cliente-suggestions"></div>
+                            <input type="hidden" id="clienteId">
+                            <div id="clienteSelecionado" style="margin-top: 5px; font-size: 12px; color: var(--success);"></div>
+                        </div>
+                        
+                        <div id="carrinhoItems" style="min-height: 200px; max-height: 350px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 15px;">
+                            <div style="text-align: center; padding: 20px; color: var(--gray);">
+                                Clique nos produtos da lista para adicionar à venda
+                            </div>
+                        </div>
+                        
+                        <!-- Desconto e Acréscimo -->
+                        <div class="desconto-acrescimo">
+                            <div class="form-group">
+                                <label>Desconto (R$)</label>
+                                <input type="number" id="desconto" step="0.01" value="0" placeholder="0,00">
+                            </div>
+                            <div class="form-group">
+                                <label>Acréscimo (R$)</label>
+                                <input type="number" id="acrescimo" step="0.01" value="0" placeholder="0,00">
+                            </div>
+                        </div>
+                        
+                        <div class="total-venda">
+                            <div class="total-linha">
+                                <span>Subtotal:</span>
+                                <span id="subtotal">R$ 0,00</span>
+                            </div>
+                            <div class="total-linha" id="linhaDesconto">
+                                <span>Desconto:</span>
+                                <span id="valorDesconto">R$ 0,00</span>
+                            </div>
+                            <div class="total-linha" id="linhaAcrescimo">
+                                <span>Acréscimo:</span>
+                                <span id="valorAcrescimo">R$ 0,00</span>
+                            </div>
+                            <div class="total-linha total">
+                                <span>TOTAL:</span>
+                                <span id="total">R$ 0,00</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Formas de Pagamento como Botões -->
+                        <div class="formas-pagamento">
+                            <button type="button" class="btn-pagamento" data-pagamento="Dinheiro">💰 Dinheiro</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Pix">📱 Pix</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Cartão Crédito">💳 Cartão Crédito</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Cartão Débito">💳 Cartão Débito</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Cheque">📝 Cheque</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Transferência">🏦 Transferência</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Boleto">📄 Boleto</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="Voucher Crédito">🎫 Voucher Crédito</button>
+                            <button type="button" class="btn-pagamento" data-pagamento="A Pagar (F)">📋 A Pagar (F)</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Observação</label>
+                            <textarea id="observacao" rows="2" placeholder="Observações da venda..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button class="btn-warning" id="btnCancelarVenda" style="flex:1;">Cancelar</button>
+                            <button class="btn-success" id="btnFinalizarVenda" style="flex:1;">✅ Finalizar Venda</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Serial -->
+    <div id="modalSerial" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Informar Número de Série</h2>
+                <span class="close-serial">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Produto</label>
+                    <input type="text" id="serialProdutoNome" readonly style="background:#f5f5f5; color: var(--dark);">
+                </div>
+                <div class="form-group">
+                    <label>Número de Série / IMEI</label>
+                    <div class="serial-input">
+                        <input type="text" id="numeroSerie" placeholder="Digite ou leia o código de barras" autofocus>
+                        <button type="button" class="btn-scan" id="btnScan">📷 Scan</button>
+                    </div>
+                    <small style="color: var(--gray); font-size: 12px;">Para produtos com serial obrigatório, informe o número de série</small>
+                </div>
+                <div id="seriaisDisponiveis" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-warning" id="btnCancelarSerial">Cancelar</button>
+                <button class="btn-primary" id="btnConfirmarSerial">Adicionar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Comprovante -->
+    <div id="modalComprovante" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📄 Comprovante de Venda</h2>
+                <span class="close-comprovante">&times;</span>
+            </div>
+            <div class="modal-body" id="comprovanteBody">
+                <!-- Preenchido via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" id="btnImprimir">🖨️ Imprimir</button>
+                <button class="btn-success" id="btnSalvarPDF">📄 Salvar PDF</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/saidas.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+

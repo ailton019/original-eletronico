@@ -1,0 +1,1058 @@
+// js/saidas.js
+// Gerenciamento de saídas (vendas)
+
+document.addEventListener('DOMContentLoaded', () => {
+    // =====================================================
+    // FUNÇÕES AUXILIARES (DEFINIDAS DENTRO DO DOMContentLoaded)
+    // =====================================================
+    
+    function getDataLocalBrasil() {
+        const hoje = new Date();
+        const dataStr = hoje.toLocaleDateString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const partes = dataStr.split('/');
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    }
+
+    function formatarData(data) {
+        if (!data) return '-';
+        const partes = data.split('-');
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    function podeCancelarVenda(dataFinalizacao) {
+        if (!dataFinalizacao) return false;
+        const agora = new Date();
+        const finalizacao = new Date(dataFinalizacao);
+        const diferencaHoras = (agora - finalizacao) / (1000 * 60 * 60);
+        return diferencaHoras <= 2;
+    }
+
+    function verificarPermissaoModulo(modulo, acao = 'ver') {
+        const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+        if (!usuario) return false;
+        if (usuario.perfil === 'admin') return true;
+        const permissoes = usuario.permissoes || {};
+        return permissoes[modulo]?.[acao] || false;
+    }
+
+    // =====================================================
+    // VERIFICAR AUTENTICAÇÃO
+    // =====================================================
+    
+    const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+    if (!usuario) {
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    if (!verificarPermissaoModulo('saidas', 'ver')) {
+        document.querySelector('.content').innerHTML = `
+            <div style="text-align: center; padding: 50px;">
+                <h2>🔒 Acesso Negado</h2>
+                <p>Você não tem permissão para acessar esta página.</p>
+                <button class="btn-primary" onclick="window.location.href='dashboard.html'">Voltar ao Dashboard</button>
+            </div>
+        `;
+        return;
+    }
+    
+    document.getElementById('userName').textContent = usuario.nome || 'Usuário';
+    const perfilLabels = {
+        admin: '👑 Administrador',
+        gerente: '📊 Gerente',
+        vendedor: '💰 Vendedor',
+        tecnico: '🔧 Técnico',
+        basico: '👤 Básico'
+    };
+    document.getElementById('userPerfil').textContent = perfilLabels[usuario.perfil] || usuario.perfil || 'Usuário';
+    
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (confirm('Tem certeza que deseja sair?')) {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+    });
+    
+    document.getElementById('menuToggle').addEventListener('click', () => {
+        document.querySelector('.sidebar').classList.toggle('open');
+    });
+    
+    // =====================================================
+    // VARIÁVEIS GLOBAIS
+    // =====================================================
+    
+    let produtos = [];
+    let clientes = [];
+    let configLoja = {};
+    let carrinho = [];
+    let formaPagamentoSelecionada = null;
+    let produtoSerialPendente = null;
+    let seriaisDisponiveis = [];
+    
+    // =====================================================
+    // FUNÇÃO PARA CANCELAR VENDA
+    // =====================================================
+    
+    window.cancelarVenda = async (vendaId) => {
+        if (!verificarPermissaoModulo('saidas', 'cancelar')) {
+            mostrarNotificacao('Você não tem permissão para cancelar vendas!', 'error');
+            return;
+        }
+        
+        console.log(`🔄 Iniciando cancelamento da venda #${vendaId}`);
+        
+        try {
+            const { data: venda, error } = await supabaseClient
+                .from('saidas')
+                .select('*, clientes(nome)')
+                .eq('id', vendaId)
+                .single();
+            
+            if (error) {
+                console.error('❌ Erro ao buscar venda:', error);
+                throw error;
+            }
+            
+            if (venda.cancelado) {
+                mostrarNotificacao('⚠️ Esta venda já foi cancelada!', 'error');
+                return;
+            }
+            
+            if (!podeCancelarVenda(venda.data_finalizacao)) {
+                const dataFinalizacao = new Date(venda.data_finalizacao);
+                const agora = new Date();
+                const diferencaHoras = (agora - dataFinalizacao) / (1000 * 60 * 60);
+                
+                mostrarNotificacao(
+                    `⛔ Não é possível cancelar esta venda!\n\n` +
+                    `O prazo de cancelamento de 2 horas após a finalização expirou.\n` +
+                    `Finalizada em: ${dataFinalizacao.toLocaleString('pt-BR')}\n` +
+                    `Passaram ${diferencaHoras.toFixed(1)} horas.`,
+                    'error'
+                );
+                return;
+            }
+            
+            const motivo = prompt(
+                '📝 Informe o motivo do cancelamento:\n\n' +
+                'Ex: Cliente desistiu, produto com defeito, etc.'
+            );
+            
+            if (motivo === null) {
+                mostrarNotificacao('❌ Cancelamento cancelado pelo usuário.', 'warning');
+                return;
+            }
+            
+            if (!motivo || motivo.trim() === '') {
+                mostrarNotificacao('⚠️ É necessário informar o motivo do cancelamento!', 'error');
+                return;
+            }
+            
+            const confirmacao = confirm(
+                `⚠️ CONFIRMAR CANCELAMENTO\n\n` +
+                `Venda Nº ${venda.id}\n` +
+                `Cliente: ${venda.clientes?.nome || 'Não informado'}\n` +
+                `Valor: R$ ${(venda.total || 0).toFixed(2)}\n` +
+                `Finalizada em: ${new Date(venda.data_finalizacao).toLocaleString('pt-BR')}\n\n` +
+                `Motivo: ${motivo}\n\n` +
+                `Esta ação irá:\n` +
+                `✅ Estornar o estoque dos produtos\n` +
+                `✅ Reativar os números de série\n` +
+                `✅ Não poderá ser desfeita!\n\n` +
+                `Deseja continuar?`
+            );
+            
+            if (!confirmacao) {
+                mostrarNotificacao('❌ Cancelamento cancelado pelo usuário.', 'warning');
+                return;
+            }
+            
+            const { data: itens, error: itensError } = await supabaseClient
+                .from('saida_itens')
+                .select('*, produtos(id, nome, estoque_total)')
+                .eq('saida_id', vendaId);
+            
+            if (itensError) {
+                console.error('❌ Erro ao buscar itens:', itensError);
+                throw itensError;
+            }
+            
+            for (const item of itens) {
+                const estoqueAtual = item.produtos.estoque_total || 0;
+                const novoEstoque = estoqueAtual + item.quantidade;
+                
+                await supabaseClient
+                    .from('produtos')
+                    .update({ 
+                        estoque_total: novoEstoque,
+                        ultima_movimentacao: new Date().toISOString()
+                    })
+                    .eq('id', item.produto_id);
+                
+                if (item.serial_id) {
+                    await supabaseClient
+                        .from('produtos_seriais')
+                        .update({ 
+                            status: 'disponivel',
+                            data_saida: null
+                        })
+                        .eq('id', item.serial_id);
+                }
+                
+                const usuarioAtual = JSON.parse(sessionStorage.getItem('usuario'));
+                await supabaseClient
+                    .from('movimentos_estoque')
+                    .insert([{
+                        produto_id: item.produto_id,
+                        tipo: 'entrada',
+                        quantidade: item.quantidade,
+                        quantidade_anterior: estoqueAtual,
+                        quantidade_nova: novoEstoque,
+                        motivo: `Cancelamento de venda #${vendaId} - ${motivo}`,
+                        data: new Date().toISOString(),
+                        usuario_id: usuarioAtual?.id || null
+                    }]);
+            }
+            
+            const usuarioAtual = JSON.parse(sessionStorage.getItem('usuario'));
+            
+            const { error: updateError } = await supabaseClient
+                .from('saidas')
+                .update({ 
+                    cancelado: true,
+                    cancelado_em: new Date().toISOString(),
+                    cancelado_por: usuarioAtual?.id || null,
+                    motivo_cancelamento: motivo
+                })
+                .eq('id', vendaId);
+            
+            if (updateError) throw updateError;
+            
+            mostrarNotificacao(
+                `✅ Venda Nº ${venda.id} cancelada com sucesso!\n\n` +
+                `📦 ${itens.length} item(ns) estornado(s)\n` +
+                `🔢 Seriais reativados\n` +
+                `📝 Motivo: ${motivo}`,
+                'success'
+            );
+            
+            await carregarDados();
+        } catch (error) {
+            console.error('❌ Erro ao cancelar venda:', error);
+            mostrarNotificacao(
+                `❌ Erro ao cancelar venda:\n${error.message || 'Erro desconhecido'}`,
+                'error'
+            );
+        }
+    };
+    
+    // =====================================================
+    // CARREGAR DADOS
+    // =====================================================
+    
+    async function carregarDados() {
+        try {
+            const [produtosRes, clientesRes, configRes, vendasRes] = await Promise.all([
+                supabaseClient.from('produtos').select('*').eq('ativo', true),
+                supabaseClient.from('clientes').select('*').order('nome'),
+                supabaseClient.from('config_loja').select('*').limit(1),
+                supabaseClient.from('saidas').select('*, clientes(nome)').order('id', { ascending: false })
+            ]);
+            
+            produtos = produtosRes.data || [];
+            clientes = clientesRes.data || [];
+            configLoja = configRes.data?.[0] || {};
+            
+            renderizarProdutos();
+            renderizarVendas(vendasRes.data || []);
+            
+            document.querySelectorAll('.btn-pagamento').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.btn-pagamento').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    formaPagamentoSelecionada = btn.getAttribute('data-pagamento');
+                });
+            });
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
+            mostrarNotificacao('Erro ao carregar dados', 'error');
+        }
+    }
+    
+    function renderizarProdutos() {
+        const container = document.getElementById('produtosList');
+        if (!container) return;
+        
+        if (produtos.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--gray);">Nenhum produto disponível</div>';
+            return;
+        }
+        
+        container.innerHTML = produtos.map(p => {
+            const estoque = p.estoque_total || p.estoque || 0;
+            const disabled = estoque <= 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+            
+            return `
+                <div class="produto-item" onclick="selecionarProduto(${p.id})" ${disabled}>
+                    <div class="produto-info">
+                        <h4>${p.nome}</h4>
+                        <small>Cód: ${p.codigo || p.id} | Estoque: ${estoque}</small>
+                        ${p.categoria ? `<small> | ${p.categoria}</small>` : ''}
+                    </div>
+                    <div class="produto-preco">R$ ${(p.valor_venda || 0).toFixed(2)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function renderizarVendas(vendas) {
+        const tbody = document.getElementById('vendasTableBody');
+        if (!tbody) return;
+        
+        if (vendas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhuma venda encontrada</td></tr>';
+            return;
+        }
+        
+        const podeCancelar = verificarPermissaoModulo('saidas', 'cancelar');
+        
+        tbody.innerHTML = vendas.map(v => {
+            const cancelado = v.cancelado || false;
+            // CORREÇÃO: Verificar se a função existe antes de chamar
+            let podeCancelarVenda = false;
+            if (typeof window.podeCancelarVenda === 'function') {
+                podeCancelarVenda = !cancelado && window.podeCancelarVenda(v.data_finalizacao);
+            } else {
+                // Fallback: verificar manualmente
+                if (!cancelado && v.data_finalizacao) {
+                    const agora = new Date();
+                    const finalizacao = new Date(v.data_finalizacao);
+                    const diffHoras = (agora - finalizacao) / (1000 * 60 * 60);
+                    podeCancelarVenda = diffHoras <= 2;
+                }
+            }
+            
+            const status = cancelado ? '❌ Cancelada' : '✅ Ativa';
+            const statusClass = cancelado ? 'status-critico' : 'status-normal';
+            const dataFormatada = formatarData(v.data);
+            
+            return `
+                <tr>
+                    <td>${v.id}</td>
+                    <td>${dataFormatada}</td>
+                    <td>${v.clientes?.nome || 'Cliente não informado'}</td>
+                    <td>R$ ${(v.total || 0).toFixed(2)}</td>
+                    <td>${v.forma_pagamento || '-'}</td>
+                    <td><span class="status-estoque ${statusClass}">${status}</span></td>
+                    <td class="table-actions" style="white-space: nowrap;">
+                        <button class="btn-info" onclick="verComprovante(${v.id})" title="Ver Comprovante" style="margin-right: 5px;">📄</button>
+                        ${podeCancelar && podeCancelarVenda ? `<button class="btn-danger" onclick="cancelarVenda(${v.id})" title="Cancelar Venda">❌ Cancelar</button>` : ''}
+                        ${cancelado && v.cancelado_em ? `<small style="color:#999; font-size:11px; display: block; margin-top: 5px;">Cancelado em: ${new Date(v.cancelado_em).toLocaleString('pt-BR')}</small>` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // =====================================================
+    // BUSCA DE CLIENTES
+    // =====================================================
+    
+    const searchCliente = document.getElementById('searchCliente');
+    const clienteSuggestions = document.getElementById('clienteSuggestions');
+    
+    if (searchCliente) {
+        searchCliente.addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            if (termo.length < 2) {
+                clienteSuggestions.style.display = 'none';
+                return;
+            }
+            
+            const filtrados = clientes.filter(c => 
+                c.nome?.toLowerCase().includes(termo) ||
+                c.cpf_cnpj?.includes(termo) ||
+                c.telefone?.includes(termo) ||
+                (c.codigo && c.codigo.toString().includes(termo))
+            );
+            
+            if (filtrados.length === 0) {
+                clienteSuggestions.innerHTML = '<div class="cliente-suggestion-item">Nenhum cliente encontrado</div>';
+                clienteSuggestions.style.display = 'block';
+                return;
+            }
+            
+            clienteSuggestions.innerHTML = filtrados.map(c => `
+                <div class="cliente-suggestion-item" onclick="selecionarCliente(${c.id}, '${c.nome.replace(/'/g, "\\'")}', '${c.cpf_cnpj || ''}')">
+                    <strong>${c.nome}</strong><br>
+                    <small>${c.cpf_cnpj || 'Sem documento'} | ${c.telefone || 'Sem telefone'}</small>
+                </div>
+            `).join('');
+            clienteSuggestions.style.display = 'block';
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (e.target !== searchCliente && !clienteSuggestions.contains(e.target)) {
+                clienteSuggestions.style.display = 'none';
+            }
+        });
+    }
+    
+    window.selecionarCliente = (id, nome, documento) => {
+        document.getElementById('clienteId').value = id;
+        document.getElementById('searchCliente').value = nome;
+        document.getElementById('clienteSelecionado').innerHTML = `<strong>Cliente selecionado:</strong> ${nome} ${documento ? `(${documento})` : ''}`;
+        clienteSuggestions.style.display = 'none';
+    };
+    
+    // =====================================================
+    // SELEÇÃO DE PRODUTO
+    // =====================================================
+    
+    window.selecionarProduto = async (produtoId) => {
+        console.log('🔍 Produto selecionado ID:', produtoId);
+        
+        const produto = produtos.find(p => p.id === produtoId);
+        if (!produto) {
+            mostrarNotificacao('Produto não encontrado!', 'error');
+            return;
+        }
+        
+        const estoque = produto.estoque_total || produto.estoque || 0;
+        if (estoque <= 0) {
+            mostrarNotificacao('Produto sem estoque disponível!', 'error');
+            return;
+        }
+        
+        let exigeSerial = false;
+        try {
+            const { data: categoria } = await supabaseClient
+                .from('categorias')
+                .select('exige_serial, exige_imei, nome')
+                .eq('nome', produto.categoria)
+                .maybeSingle();
+            
+            exigeSerial = categoria?.exige_serial === true || produto.categoria === 'Celular';
+        } catch (error) {
+            exigeSerial = produto.categoria === 'Celular';
+        }
+        
+        if (exigeSerial) {
+            const { data: seriais, error } = await supabaseClient
+                .from('produtos_seriais')
+                .select('*')
+                .eq('produto_id', produtoId)
+                .eq('status', 'disponivel');
+            
+            if (error) {
+                console.error('Erro ao buscar seriais:', error);
+                mostrarNotificacao('Erro ao verificar seriais disponíveis', 'error');
+                return;
+            }
+            
+            if (!seriais || seriais.length === 0) {
+                for (let i = 1; i <= 3; i++) {
+                    await supabaseClient
+                        .from('produtos_seriais')
+                        .insert([{
+                            produto_id: produtoId,
+                            numero_serie: 'SER' + produtoId + '-' + String(i).padStart(3, '0'),
+                            status: 'disponivel',
+                            data_entrada: new Date().toISOString()
+                        }]);
+                }
+                
+                const { data: novoSeriais } = await supabaseClient
+                    .from('produtos_seriais')
+                    .select('*')
+                    .eq('produto_id', produtoId)
+                    .eq('status', 'disponivel');
+                
+                if (!novoSeriais || novoSeriais.length === 0) {
+                    mostrarNotificacao(`Nenhum número de série disponível para ${produto.nome}!`, 'error');
+                    return;
+                }
+                
+                produtoSerialPendente = produto;
+                seriaisDisponiveis = novoSeriais;
+            } else {
+                produtoSerialPendente = produto;
+                seriaisDisponiveis = seriais;
+            }
+            
+            document.getElementById('serialProdutoNome').value = produto.nome;
+            document.getElementById('numeroSerie').value = '';
+            
+            const container = document.getElementById('seriaisDisponiveis');
+            container.innerHTML = `
+                <strong>📱 Seriais disponíveis (${seriaisDisponiveis.length} unidades):</strong>
+                <ul style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                    ${seriaisDisponiveis.map(s => `
+                        <li style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" 
+                            onclick="selecionarSerial('${s.numero_serie}')">
+                            <div>
+                                <code>${s.numero_serie || 'N/A'}</code> 
+                                ${s.imei ? `<br><small>IMEI: ${s.imei}</small>` : ''}
+                            </div>
+                            <button style="background:#0066FF; color:white; border:none; padding:4px 12px; border-radius:4px; cursor:pointer;">Selecionar</button>
+                        </li>
+                    `).join('')}
+                </ul>
+                <small style="display: block; margin-top: 10px;">📝 Digite ou clique no serial acima para selecionar</small>
+            `;
+            
+            document.getElementById('modalSerial').style.display = 'flex';
+            document.getElementById('numeroSerie').focus();
+        } else {
+            adicionarAoCarrinho(produto, null);
+        }
+    };
+    
+    window.selecionarSerial = (serial) => {
+        document.getElementById('numeroSerie').value = serial;
+        document.getElementById('btnConfirmarSerial').click();
+    };
+    
+    document.getElementById('btnConfirmarSerial')?.addEventListener('click', async () => {
+        const numeroSerie = document.getElementById('numeroSerie').value.trim();
+        
+        if (!numeroSerie && seriaisDisponiveis.length > 0) {
+            mostrarNotificacao('Informe o número de série!', 'error');
+            return;
+        }
+        
+        const serial = seriaisDisponiveis.find(s => s.numero_serie === numeroSerie || s.imei === numeroSerie);
+        
+        if (seriaisDisponiveis.length > 0 && !serial) {
+            mostrarNotificacao('Número de série inválido!', 'error');
+            return;
+        }
+        
+        if (produtoSerialPendente) {
+            adicionarAoCarrinho(produtoSerialPendente, serial);
+        }
+        
+        document.getElementById('modalSerial').style.display = 'none';
+        produtoSerialPendente = null;
+    });
+    
+    document.getElementById('btnCancelarSerial')?.addEventListener('click', () => {
+        document.getElementById('modalSerial').style.display = 'none';
+        produtoSerialPendente = null;
+    });
+    
+    document.getElementById('numeroSerie')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('btnConfirmarSerial').click();
+        }
+    });
+    
+    // =====================================================
+    // FUNÇÕES DO CARRINHO
+    // =====================================================
+    
+    function adicionarAoCarrinho(produto, serial) {
+        const estoque = produto.estoque_total || produto.estoque || 0;
+        
+        const itemExistente = carrinho.find(item => 
+            item.id === produto.id && 
+            (!serial || item.serial === serial?.numero_serie)
+        );
+        
+        if (itemExistente) {
+            if (itemExistente.quantidade + 1 > estoque) {
+                mostrarNotificacao(`Estoque insuficiente! Disponível: ${estoque}`, 'error');
+                return;
+            }
+            itemExistente.quantidade++;
+            itemExistente.subtotal = itemExistente.quantidade * itemExistente.valor_venda;
+        } else {
+            carrinho.push({
+                id: produto.id,
+                nome: produto.nome,
+                codigo: produto.codigo,
+                categoria: produto.categoria,
+                valor_venda: produto.valor_venda || 0,
+                quantidade: 1,
+                subtotal: produto.valor_venda || 0,
+                serial: serial?.numero_serie || null,
+                imei: serial?.imei || null,
+                serial_id: serial?.id || null
+            });
+        }
+        
+        renderizarCarrinho();
+        calcularTotais();
+    }
+    
+    function renderizarCarrinho() {
+        const container = document.getElementById('carrinhoItems');
+        if (!container) return;
+        
+        if (carrinho.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--gray);">Clique nos produtos da lista para adicionar à venda</div>';
+            return;
+        }
+        
+        container.innerHTML = carrinho.map((item, index) => `
+            <div class="carrinho-item">
+                <div>
+                    <strong>${item.nome}</strong><br>
+                    <small>Cód: ${item.codigo || item.id}</small>
+                    ${item.serial ? `<br><small>Serial: <code>${item.serial}</code></small>` : ''}
+                    ${item.imei ? `<br><small>IMEI: ${item.imei}</small>` : ''}
+                </div>
+                <div>R$ ${item.valor_venda.toFixed(2)}</div>
+                <div>
+                    <input type="number" min="1" value="${item.quantidade}" 
+                           onchange="atualizarQuantidade(${index}, this.value)">
+                </div>
+                <div>R$ ${item.subtotal.toFixed(2)}</div>
+                <button class="btn-remover" onclick="removerDoCarrinho(${index})">✕</button>
+            </div>
+        `).join('');
+    }
+    
+    window.atualizarQuantidade = (index, quantidade) => {
+        quantidade = parseInt(quantidade);
+        if (isNaN(quantidade) || quantidade < 1) quantidade = 1;
+        
+        const produto = produtos.find(p => p.id === carrinho[index].id);
+        const estoque = produto.estoque_total || produto.estoque || 0;
+        
+        if (quantidade > estoque) {
+            mostrarNotificacao(`Estoque insuficiente! Disponível: ${estoque}`, 'error');
+            quantidade = estoque;
+        }
+        
+        carrinho[index].quantidade = quantidade;
+        carrinho[index].subtotal = quantidade * carrinho[index].valor_venda;
+        
+        renderizarCarrinho();
+        calcularTotais();
+    };
+    
+    window.removerDoCarrinho = (index) => {
+        carrinho.splice(index, 1);
+        renderizarCarrinho();
+        calcularTotais();
+    };
+    
+    function calcularTotais() {
+        const subtotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+        const desconto = parseFloat(document.getElementById('desconto')?.value) || 0;
+        const acrescimo = parseFloat(document.getElementById('acrescimo')?.value) || 0;
+        const total = subtotal - desconto + acrescimo;
+        
+        document.getElementById('subtotal').textContent = `R$ ${subtotal.toFixed(2)}`;
+        document.getElementById('valorDesconto').textContent = `R$ ${desconto.toFixed(2)}`;
+        document.getElementById('valorAcrescimo').textContent = `R$ ${acrescimo.toFixed(2)}`;
+        document.getElementById('total').textContent = `R$ ${total.toFixed(2)}`;
+    }
+    
+    document.getElementById('desconto')?.addEventListener('input', calcularTotais);
+    document.getElementById('acrescimo')?.addEventListener('input', calcularTotais);
+    
+    // =====================================================
+    // FINALIZAR VENDA
+    // =====================================================
+    
+    async function finalizarVenda() {
+        if (!verificarPermissaoModulo('saidas', 'criar')) {
+            mostrarNotificacao('Você não tem permissão para criar vendas!', 'error');
+            return;
+        }
+        
+        const clienteId = document.getElementById('clienteId').value;
+        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
+        const acrescimo = parseFloat(document.getElementById('acrescimo').value) || 0;
+        const observacao = document.getElementById('observacao').value;
+        
+        if (carrinho.length === 0) {
+            mostrarNotificacao('Adicione pelo menos um produto ao carrinho!', 'error');
+            return;
+        }
+        
+        if (!formaPagamentoSelecionada) {
+            mostrarNotificacao('Selecione a forma de pagamento!', 'error');
+            return;
+        }
+        
+        const subtotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+        const total = subtotal - desconto + acrescimo;
+        
+        try {
+            const dataVenda = getDataLocalBrasil();
+            const dataFinalizacao = new Date().toISOString();
+            
+            const { data: venda, error: vendaError } = await supabaseClient
+                .from('saidas')
+                .insert([{
+                    cliente_id: clienteId || null,
+                    data: dataVenda,
+                    total: total,
+                    desconto: desconto,
+                    forma_pagamento: formaPagamentoSelecionada,
+                    observacao: `${observacao || ''} | Acréscimo: R$ ${acrescimo.toFixed(2)}`,
+                    usuario_id: usuario.id,
+                    data_finalizacao: dataFinalizacao
+                }])
+                .select()
+                .single();
+            
+            if (vendaError) throw vendaError;
+            
+            for (const item of carrinho) {
+                const itemData = {
+                    saida_id: venda.id,
+                    produto_id: item.id,
+                    quantidade: item.quantidade,
+                    valor_unitario: item.valor_venda,
+                    subtotal: item.subtotal
+                };
+                
+                if (item.serial_id) {
+                    itemData.serial_id = item.serial_id;
+                }
+                
+                await supabaseClient
+                    .from('saida_itens')
+                    .insert([itemData]);
+                
+                const produto = produtos.find(p => p.id === item.id);
+                const novoEstoque = (produto.estoque_total || produto.estoque || 0) - item.quantidade;
+                
+                await supabaseClient
+                    .from('produtos')
+                    .update({ 
+                        estoque_total: novoEstoque,
+                        ultima_movimentacao: new Date().toISOString()
+                    })
+                    .eq('id', item.id);
+                
+                if (item.serial_id) {
+                    await supabaseClient
+                        .from('produtos_seriais')
+                        .update({ 
+                            status: 'vendido',
+                            data_saida: new Date().toISOString()
+                        })
+                        .eq('id', item.serial_id);
+                }
+                
+                await supabaseClient
+                    .from('movimentos_estoque')
+                    .insert([{
+                        produto_id: item.id,
+                        tipo: 'saida',
+                        quantidade: item.quantidade,
+                        quantidade_anterior: produto.estoque_total || produto.estoque || 0,
+                        quantidade_nova: novoEstoque,
+                        motivo: `Venda #${venda.id}`,
+                        data: new Date().toISOString(),
+                        usuario_id: usuario.id
+                    }]);
+            }
+            
+            mostrarNotificacao('Venda finalizada com sucesso!', 'success');
+            
+            await gerarComprovante(venda.id);
+            
+            carrinho = [];
+            document.getElementById('modalVenda').style.display = 'none';
+            carregarDados();
+        } catch (error) {
+            console.error('Erro ao finalizar venda:', error);
+            mostrarNotificacao('Erro ao finalizar venda: ' + (error.message || 'Verifique os dados'), 'error');
+        }
+    }
+    
+    // =====================================================
+    // GERAR COMPROVANTE
+    // =====================================================
+    
+    window.verComprovante = async (vendaId) => {
+        await gerarComprovante(vendaId);
+    };
+    
+    async function gerarComprovante(vendaId) {
+        try {
+            const { data: venda, error } = await supabaseClient
+                .from('saidas')
+                .select(`
+                    *,
+                    clientes (nome, telefone, email, endereco, numero, cidade, estado, cpf_cnpj)
+                `)
+                .eq('id', vendaId)
+                .single();
+            
+            if (error) throw error;
+            
+            const { data: itens, error: itensError } = await supabaseClient
+                .from('saida_itens')
+                .select(`
+                    *,
+                    produtos (id, nome, codigo, categoria, marca, modelo)
+                `)
+                .eq('saida_id', vendaId);
+            
+            if (itensError) throw itensError;
+            
+            for (let item of itens) {
+                if (item.serial_id) {
+                    const { data: serialData } = await supabaseClient
+                        .from('produtos_seriais')
+                        .select('numero_serie, imei')
+                        .eq('id', item.serial_id)
+                        .single();
+                    
+                    if (serialData) {
+                        item.numero_serie = serialData.numero_serie;
+                        item.imei = serialData.imei;
+                    }
+                }
+            }
+            
+            const cliente = venda.clientes || {};
+            const dataVenda = formatarData(venda.data);
+            const horaVenda = new Date().toLocaleTimeString('pt-BR');
+            
+            const subtotal = itens.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+            const desconto = venda.desconto || 0;
+            const total = venda.total || 0;
+            const cancelada = venda.cancelado;
+            
+            const comprovanteHtml = `
+                <div id="comprovante" style="padding: 20px; font-family: 'Courier New', monospace; max-width: 800px; margin: 0 auto; font-size: 12px;">
+                    <div style="text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px;">
+                        <h2 style="margin: 0; font-size: 18px;">${configLoja.nome || 'Original Eletrônicos'}</h2>
+                        <p style="margin: 5px 0;">CNPJ: ${configLoja.cnpj || '12.345.678/0001-90'}</p>
+                        <p style="margin: 5px 0;">${configLoja.endereco || 'Rua das Eletrônicas'}, ${configLoja.numero || '1000'}</p>
+                        <p style="margin: 5px 0;">${configLoja.cidade || 'São Paulo'} - ${configLoja.estado || 'SP'} | CEP: ${configLoja.cep || '00000-000'}</p>
+                        <p style="margin: 5px 0;">Tel: ${configLoja.telefone || '(11) 99999-9999'} | Email: ${configLoja.email || 'contato@eletronicos.com'}</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">${cancelada ? 'CANCELADO - ' : ''}COMPROVANTE DE VENDA</h3>
+                        <p style="margin: 5px 0;"><strong>Nº ${venda.id}</strong> | ${dataVenda} às ${horaVenda}</p>
+                        ${cancelada ? `<p style="color:red; margin-top:10px;"><strong>VENDA CANCELADA</strong><br>Motivo: ${venda.motivo_cancelamento || 'Não informado'}<br>Cancelado em: ${venda.cancelado_em ? new Date(venda.cancelado_em).toLocaleString('pt-BR') : '-'}</p>` : ''}
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 10px;">
+                        <h4 style="margin: 0 0 10px 0;">DADOS DO CLIENTE</h4>
+                        <p style="margin: 3px 0;"><strong>Nome:</strong> ${cliente.nome || 'Cliente não informado'}</p>
+                        <p style="margin: 3px 0;"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj || '-'}</p>
+                        <p style="margin: 3px 0;"><strong>Telefone:</strong> ${cliente.telefone || '-'}</p>
+                        <p style="margin: 3px 0;"><strong>Email:</strong> ${cliente.email || '-'}</p>
+                        <p style="margin: 3px 0;"><strong>Endereço:</strong> ${cliente.endereco || '-'}, ${cliente.numero || '-'} - ${cliente.cidade || '-'}/${cliente.estado || '-'}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0;">ITENS VENDIDOS</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr style="background: #f0f0f0; border-bottom: 1px solid #000;">
+                                    <th style="padding: 8px; text-align: left;">Código</th>
+                                    <th style="padding: 8px; text-align: left;">Produto / Nº Série</th>
+                                    <th style="padding: 8px; text-align: center;">Qtd</th>
+                                    <th style="padding: 8px; text-align: right;">Valor Unit.</th>
+                                    <th style="padding: 8px; text-align: right;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itens.map(item => {
+                                    let serialHtml = '';
+                                    if (item.numero_serie) {
+                                        serialHtml = `<br><small>🔢 Nº Série: <strong>${item.numero_serie}</strong></small>`;
+                                    }
+                                    if (item.imei) {
+                                        serialHtml += `<br><small>📱 IMEI: ${item.imei}</small>`;
+                                    }
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid #ddd;">
+                                            <td style="padding: 8px; vertical-align: top;">${item.produtos?.codigo || item.produto_id}</td>
+                                            <td style="padding: 8px; vertical-align: top;">
+                                                <strong>${item.produtos?.nome || 'Produto'}</strong>
+                                                ${serialHtml}
+                                            </td>
+                                            <td style="padding: 8px; text-align: center;">${item.quantidade}</td>
+                                            <td style="padding: 8px; text-align: right;">R$ ${(item.valor_unitario || 0).toFixed(2)}</td>
+                                            <td style="padding: 8px; text-align: right;">R$ ${(item.subtotal || 0).toFixed(2)}</td>
+                                        </td>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                            <tfoot>
+                                <tr style="border-top: 2px solid #000;">
+                                    <td colspan="4" style="padding: 8px; text-align: right;"><strong>Subtotal:</strong></td>
+                                    <td style="padding: 8px; text-align: right;"><strong>R$ ${subtotal.toFixed(2)}</strong></td>
+                                </tr>
+                                ${desconto > 0 ? `
+                                <tr>
+                                    <td colspan="4" style="padding: 8px; text-align: right;"><strong>Desconto:</strong></td>
+                                    <td style="padding: 8px; text-align: right;"><strong>- R$ ${desconto.toFixed(2)}</strong></td>
+                                </tr>
+                                ` : ''}
+                                <tr style="background: #f0f0f0;">
+                                    <td colspan="4" style="padding: 8px; text-align: right;"><strong>TOTAL:</strong></td>
+                                    <td style="padding: 8px; text-align: right;"><strong>R$ ${total.toFixed(2)}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 10px;">
+                        <p style="margin: 3px 0;"><strong>Forma de Pagamento:</strong> ${venda.forma_pagamento || '-'}</p>
+                        ${venda.observacao ? `<p style="margin: 3px 0;"><strong>Observação:</strong> ${venda.observacao}</p>` : ''}
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 15px;">
+                        <p>${configLoja.mensagem_garantia || 'Produto com garantia de 90 dias contra defeitos de fabricação.'}</p>
+                        <p>Este documento é um comprovante de venda válido.</p>
+                        <p>Obrigado pela preferência!</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('comprovanteBody').innerHTML = comprovanteHtml;
+            document.getElementById('modalComprovante').style.display = 'flex';
+        } catch (error) {
+            console.error('Erro ao gerar comprovante:', error);
+            mostrarNotificacao('Erro ao gerar comprovante: ' + error.message, 'error');
+        }
+    }
+    
+    // =====================================================
+    // IMPRIMIR E PDF
+    // =====================================================
+    
+    document.getElementById('btnImprimir')?.addEventListener('click', () => {
+        const conteudo = document.getElementById('comprovante').innerHTML;
+        const janela = window.open('', '_blank');
+        janela.document.write(`
+            <html>
+            <head>
+                <title>Comprovante de Venda</title>
+                <style>
+                    body { font-family: monospace; margin: 20px; }
+                    @media print {
+                        body { margin: 0; }
+                        button { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${conteudo}
+                <script>window.print(); setTimeout(() => window.close(), 500);<\/script>
+            </body>
+            </html>
+        `);
+        janela.document.close();
+    });
+    
+    document.getElementById('btnSalvarPDF')?.addEventListener('click', () => {
+        const element = document.getElementById('comprovante');
+        const opt = {
+            margin: [10, 10, 10, 10],
+            filename: `comprovante_venda_${Date.now()}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    });
+    
+    // =====================================================
+    // EVENTOS
+    // =====================================================
+    
+    document.getElementById('btnNovaVenda')?.addEventListener('click', () => {
+        if (!verificarPermissaoModulo('saidas', 'criar')) {
+            mostrarNotificacao('Você não tem permissão para criar vendas!', 'error');
+            return;
+        }
+        
+        carrinho = [];
+        renderizarCarrinho();
+        calcularTotais();
+        document.getElementById('clienteId').value = '';
+        document.getElementById('searchCliente').value = '';
+        document.getElementById('clienteSelecionado').innerHTML = '';
+        document.getElementById('desconto').value = '0';
+        document.getElementById('acrescimo').value = '0';
+        document.getElementById('observacao').value = '';
+        document.querySelectorAll('.btn-pagamento').forEach(b => b.classList.remove('selected'));
+        formaPagamentoSelecionada = null;
+        document.getElementById('modalVenda').style.display = 'flex';
+        document.getElementById('searchProdutoVenda').value = '';
+        renderizarProdutos();
+    });
+    
+    document.getElementById('btnFinalizarVenda')?.addEventListener('click', finalizarVenda);
+    document.getElementById('btnCancelarVenda')?.addEventListener('click', () => {
+        document.getElementById('modalVenda').style.display = 'none';
+    });
+    
+    document.getElementById('searchProdutoVenda')?.addEventListener('input', (e) => {
+        const search = e.target.value.toLowerCase();
+        const container = document.getElementById('produtosList');
+        const produtosFiltrados = produtos.filter(p => 
+            p.nome?.toLowerCase().includes(search) || 
+            (p.codigo || '').toLowerCase().includes(search)
+        );
+        
+        if (produtosFiltrados.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--gray);">Nenhum produto encontrado</div>';
+            return;
+        }
+        
+        container.innerHTML = produtosFiltrados.map(p => {
+            const estoque = p.estoque_total || p.estoque || 0;
+            const disabled = estoque <= 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+            return `
+                <div class="produto-item" onclick="selecionarProduto(${p.id})" ${disabled}>
+                    <div class="produto-info">
+                        <h4>${p.nome}</h4>
+                        <small>Cód: ${p.codigo || p.id} | Estoque: ${estoque}</small>
+                    </div>
+                    <div class="produto-preco">R$ ${(p.valor_venda || 0).toFixed(2)}</div>
+                </div>
+            `;
+        }).join('');
+    });
+    
+    document.querySelectorAll('.close, .close-comprovante, .close-serial').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('modalVenda').style.display = 'none';
+            document.getElementById('modalComprovante').style.display = 'none';
+            document.getElementById('modalSerial').style.display = 'none';
+        });
+    });
+    
+    window.onclick = (event) => {
+        if (event.target === document.getElementById('modalVenda')) {
+            document.getElementById('modalVenda').style.display = 'none';
+        }
+        if (event.target === document.getElementById('modalComprovante')) {
+            document.getElementById('modalComprovante').style.display = 'none';
+        }
+        if (event.target === document.getElementById('modalSerial')) {
+            document.getElementById('modalSerial').style.display = 'none';
+        }
+    };
+    
+    carregarDados();
+    
+    window.selecionarProduto = selecionarProduto;
+    window.atualizarQuantidade = atualizarQuantidade;
+    window.removerDoCarrinho = removerDoCarrinho;
+    window.verComprovante = verComprovante;
+    window.selecionarSerial = selecionarSerial;
+    window.cancelarVenda = cancelarVenda;
+});

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entradas - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .venda-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .produtos-lista {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .carrinho {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .produto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .produto-item:hover {
+            background: var(--light);
+        }
+        
+        .produto-info h4 {
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .produto-info small {
+            color: var(--gray);
+            font-size: 12px;
+        }
+        
+        .produto-preco {
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .carrinho-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        .carrinho-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .carrinho-item-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .carrinho-item-controls input {
+            width: 80px;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        
+        .carrinho-item-controls label {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        
+        .serial-inputs-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .serial-input-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .serial-input-row input {
+            flex: 1;
+            padding: 5px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            min-width: 120px;
+        }
+        
+        .serial-input-row input.required {
+            border-left: 3px solid var(--danger);
+        }
+        
+        .total-venda {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border);
+        }
+        
+        .total-linha {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .total-linha.total {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .btn-remover {
+            background: var(--danger);
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .btn-remover:hover {
+            background: #bd2130;
+        }
+        
+        .nota-grid-dados {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-efetuada {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-cancelada {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @media (max-width: 768px) {
+            .venda-container {
+                grid-template-columns: 1fr;
+            }
+            .nota-grid-dados {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h1>📥 Lançamento de Compras (Entradas)</h1>
+                    <button class="btn-primary" id="btnNovaEntrada">+ Lançar Compra</button>
+                </div>
+                
+                <div id="listaEntradas" class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº Registro</th>
+                                <th>Nota / Série</th>
+                                <th>Data Compra</th>
+                                <th>Fornecedor</th>
+                                <th>Total</th>
+                                <th>Lançamento / Obs.</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entradasTableBody">
+                            <tr><td colspan="7" style="text-align: center;">Carregando entradas...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal Lançar Compra (Entrada) -->
+    <div id="modalEntrada" class="modal">
+        <div class="modal-content" style="max-width: 1300px; width: 95%;">
+            <div class="modal-header">
+                <h2 id="modalTitle">Nova Entrada de Nota Fiscal</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="venda-container">
+                    <!-- Coluna Esquerda - Seleção de Produtos -->
+                    <div class="produtos-lista">
+                        <h3>📦 Pesquisar Produtos</h3>
+                        <div class="filters" style="margin-bottom: 15px;">
+                            <input type="text" id="searchProdutoEntrada" placeholder="Pesquisar por nome ou código...">
+                        </div>
+                        <div id="produtosList" style="max-height: 500px; overflow-y: auto;">
+                            <div style="text-align: center; padding: 20px;">Carregando produtos...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Coluna Direita - Dados da Nota e Carrinho -->
+                    <div class="carrinho">
+                        <h3>📋 Dados da Nota Fiscal e Itens</h3>
+                        
+                        <!-- Dados da Nota -->
+                        <div class="nota-grid-dados">
+                            <div class="form-group">
+                                <label>Número da Nota *</label>
+                                <input type="text" id="numeroNota" placeholder="Ex: 000123" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Série</label>
+                                <input type="text" id="serieNota" placeholder="Ex: 1" value="1">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Fornecedor *</label>
+                            <select id="selectFornecedor" required>
+                                <option value="">Carregando fornecedores...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="nota-grid-dados">
+                            <div class="form-group">
+                                <label>Data da Compra *</label>
+                                <input type="date" id="dataCompra" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Data do Lançamento *</label>
+                                <input type="date" id="dataLancamento" required>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 15px 0 10px 0; border-bottom: 1px solid var(--border); padding-bottom: 5px;">🛒 Itens da Nota</h4>
+                        <div id="carrinhoItems" style="min-height: 200px; max-height: 350px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 15px;">
+                            <div style="text-align: center; padding: 20px; color: var(--gray);">
+                                Clique nos produtos da lista para adicionar à nota
+                            </div>
+                        </div>
+                        
+                        <div class="total-venda">
+                            <div class="total-linha total">
+                                <span>TOTAL DA NOTA:</span>
+                                <span id="totalNota">R$ 0,00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>Observação</label>
+                            <textarea id="observacao" rows="2" placeholder="Observações adicionais..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button class="btn-warning" id="btnCancelarEntrada" style="flex:1;">Cancelar</button>
+                            <button class="btn-success" id="btnFinalizarEntrada" style="flex:1;">📥 Confirmar Entrada</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes da Entrada -->
+    <div id="modalDetalhes" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📋 Detalhes da Nota Fiscal</h2>
+                <span class="close-detalhes" style="cursor:pointer; font-size:24px;">&times;</span>
+            </div>
+            <div class="modal-body" id="detalhesBody">
+                <!-- Preenchido via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="document.getElementById('modalDetalhes').style.display='none'">Fechar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/entradas.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+

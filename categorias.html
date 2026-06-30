@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categorias - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filters-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .filters-container input {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .badge-imei {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-imei-obrigatorio {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-imei-opcional {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-serial {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-serial-obrigatorio {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-ativo {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-inativo {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #0c5460;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #0c5460;
+            font-size: 14px;
+        }
+        
+        .info-box ul {
+            margin: 10px 0 0 20px;
+            color: #0c5460;
+            font-size: 13px;
+        }
+        
+        .form-group-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .form-group-checkbox input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .form-group-checkbox label {
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <div class="page-header">
+                    <h1>🏷️ Categorias</h1>
+                    <button class="btn-primary" id="btnNovaCategoria">+ Nova Categoria</button>
+                </div>
+                
+                <div class="info-box">
+                    <h4>📌 Informações sobre Categorias</h4>
+                    <p>Configure aqui quais categorias exigem o preenchimento obrigatório do IMEI.</p>
+                    <ul>
+                        <li><strong>IMEI Obrigatório</strong> - Apenas para celulares e dispositivos com identificação única</li>
+                        <li><strong>Número de Série</strong> - Todas as categorias exigem número de série por padrão</li>
+                        <li>As configurações afetam o cadastro de produtos na respectiva categoria</li>
+                    </ul>
+                </div>
+                
+                <div class="filters-container">
+                    <input type="text" id="searchCategoria" placeholder="Pesquisar categoria...">
+                    <select id="filtroStatus">
+                        <option value="">Todos</option>
+                        <option value="true">Ativas</option>
+                        <option value="false">Inativas</option>
+                    </select>
+                    <select id="filtroIMEI">
+                        <option value="">Todos</option>
+                        <option value="true">IMEI Obrigatório</option>
+                        <option value="false">IMEI Opcional</option>
+                    </select>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Categoria</th>
+                                <th>Descrição</th>
+                                <th>IMEI</th>
+                                <th>Nº Série</th>
+                                <th>Status</th>
+                                <th>Data Cadastro</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoriasTableBody">
+                            <tr><td colspan="8" style="text-align: center;">Carregando...</td</tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal Categoria -->
+    <div id="modalCategoria" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalCategoriaTitle">Nova Categoria</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="categoriaForm">
+                    <input type="hidden" id="categoriaId">
+                    
+                    <div class="form-group">
+                        <label>Nome da Categoria *</label>
+                        <input type="text" id="nome" required placeholder="Ex: Celular, Notebook...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="descricao" rows="3" placeholder="Descrição da categoria..."></textarea>
+                    </div>
+                    
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" id="exige_imei">
+                        <label>📱 Exige IMEI (Obrigatório para celulares)</label>
+                    </div>
+                    <div class="help-text">
+                        Marque esta opção se produtos desta categoria precisam ter IMEI cadastrado.
+                        Exemplo: Celulares, Tablets com SIM Card.
+                    </div>
+                    
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" id="exige_serial" checked>
+                        <label>🔢 Exige Número de Série</label>
+                    </div>
+                    <div class="help-text">
+                        Todas as categorias geralmente exigem número de série. Desmarque apenas se não for necessário.
+                    </div>
+                    
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" id="ativo" checked>
+                        <label>✅ Categoria Ativa</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-warning" id="btnCancelar">Cancelar</button>
+                <button class="btn-primary" id="btnSalvar">Salvar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/categorias.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+

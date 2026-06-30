@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produtos - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .produtos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filters-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .filters-container input, .filters-container select {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .filters-container input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .serial-badge {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+        
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 2px solid #ffc107;
+        }
+        
+        .form-section h3 {
+            margin-bottom: 15px;
+            color: var(--dark);
+            font-size: 16px;
+        }
+        
+        .seriais-container {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .serial-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--light);
+            border-radius: 8px;
+            align-items: center;
+        }
+        
+        .serial-item input {
+            margin: 0;
+        }
+        
+        .btn-remove-serial {
+            background: var(--danger);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn-remove-serial:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-add-serial {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .estoque-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #856404;
+        }
+        
+        .estoque-info-warning {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .modal-large {
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .required-label::after {
+            content: " *";
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .serial-item {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <div class="produtos-header">
+                    <h1>📦 Produtos</h1>
+                    <div class="btn-group">
+                        <button class="btn-primary" id="btnNovoProduto">+ Novo Produto</button>
+                    </div>
+                </div>
+                
+                <div class="filters-container">
+                    <input type="text" id="searchProduto" placeholder="Pesquisar por código, nome, marca...">
+                    <select id="filtroCategoria">
+                        <option value="">Todas Categorias</option>
+                    </select>
+                    <button class="btn-primary" id="btnPesquisar">🔍 Pesquisar</button>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Produto</th>
+                                <th>Categoria</th>
+                                <th>Marca</th>
+                                <th>Estoque</th>
+                                <th>Mínimo</th>
+                                <th>Valor Venda</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="produtosTableBody">
+                            <tr><td colspan="8" style="text-align: center;">Carregando...</td</tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal Produto -->
+    <div id="modalProduto" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalProdutoTitle">Novo Produto</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="produtoForm">
+                    <input type="hidden" id="produtoId">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required-label">Código</label>
+                            <input type="text" id="codigo" placeholder="Ex: ELEC-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="required-label">Nome</label>
+                            <input type="text" id="nome" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <select id="categoria">
+                                <option value="">Carregando categorias...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="marca" placeholder="Ex: Apple, Samsung...">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="modelo" placeholder="Modelo do produto">
+                        </div>
+                        <div class="form-group">
+                            <label>Garantia (dias)</label>
+                            <input type="number" id="garantia_dias" value="90">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Valor Compra (R$)</label>
+                            <input type="number" step="0.01" id="valor_compra">
+                        </div>
+                        <div class="form-group">
+                            <label class="required-label">Valor Venda (R$)</label>
+                            <input type="number" step="0.01" id="valor_venda" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Estoque Mínimo</label>
+                            <input type="number" id="estoque_minimo" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label>Imagem URL</label>
+                            <input type="text" id="imagem" placeholder="URL da imagem do produto">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="descricao" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>📦 Itens em Estoque</h3>
+                        <div class="estoque-info">
+                            <strong>ℹ️ INFORMAÇÕES:</strong> Cadastre abaixo os itens que estão em estoque.
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="required-label">Quantidade em Estoque</label>
+                            <input type="number" id="quantidade_estoque" min="1" value="1" style="width: 150px;">
+                            <small style="display: block; color: #666; margin-top: 5px;">
+                                Informe quantas unidades serão cadastradas
+                            </small>
+                        </div>
+                        
+                        <div id="seriaisContainer" class="seriais-container">
+                            <div style="font-weight: 500; margin-bottom: 10px;">
+                                📝 Dados dos Itens:
+                            </div>
+                            <div id="seriaisList"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-warning" id="btnCancelarProduto">Cancelar</button>
+                <button class="btn-primary" id="btnSalvarProduto">Salvar Produto</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/produtos.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+

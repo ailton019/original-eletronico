@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .relatorios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card-relatorio {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid var(--primary);
+            text-align: center;
+        }
+        
+        .card-relatorio:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .card-relatorio .icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .card-relatorio h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--dark);
+        }
+        
+        .card-relatorio p {
+            margin: 5px 0 0;
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .relatorio-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .relatorio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .relatorio-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--dark);
+        }
+        
+        .filtros-relatorio {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filtros-relatorio input,
+        .filtros-relatorio select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .filtros-relatorio button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-export {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-export:hover {
+            background: #218838;
+        }
+        
+        .btn-pdf {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-pdf:hover {
+            background: #c82333;
+        }
+        
+        .btn-excel {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-excel:hover {
+            background: #1e7e34;
+        }
+        
+        .table-relatorio {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .table-relatorio th {
+            background: var(--primary);
+            color: white;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .table-relatorio td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .table-relatorio tr:hover {
+            background: var(--light);
+        }
+        
+        .table-relatorio .total-row {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            max-height: 300px;
+            margin-top: 20px;
+        }
+        
+        .dashboard-kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .kpi-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-top: 3px solid var(--primary);
+        }
+        
+        .kpi-card .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--dark);
+        }
+        
+        .kpi-card .kpi-label {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+        
+        .kpi-card .kpi-icon {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .kpi-card.primary { border-top-color: var(--primary); }
+        .kpi-card.success { border-top-color: var(--success); }
+        .kpi-card.danger { border-top-color: var(--danger); }
+        .kpi-card.warning { border-top-color: var(--warning); }
+        .kpi-card.info { border-top-color: var(--info); }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn:hover {
+            border-bottom-color: var(--border);
+        }
+        
+        .tab-btn.active {
+            border-bottom-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .tabs-container {
+            display: flex;
+            gap: 5px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        @media print {
+            .btn-export, .btn-pdf, .btn-excel, .filtros-relatorio {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <h1>📈 Relatórios</h1>
+                
+                <!-- Cards de Atalho -->
+                <div class="relatorios-grid">
+                    <div class="card-relatorio" onclick="abrirAba('dashboard')">
+                        <div class="icon">📊</div>
+                        <h3>Dashboard</h3>
+                        <p>Visão geral com KPIs</p>
+                    </div>
+                    <div class="card-relatorio" onclick="abrirAba('movimento')">
+                        <div class="icon">📋</div>
+                        <h3>Movimento Diário</h3>
+                        <p>Entradas e saídas do dia</p>
+                    </div>
+                    <div class="card-relatorio" onclick="abrirAba('faturamento')">
+                        <div class="icon">💰</div>
+                        <h3>Faturamento</h3>
+                        <p>Por plano/período</p>
+                    </div>
+                    <div class="card-relatorio" onclick="abrirAba('vendas')">
+                        <div class="icon">📦</div>
+                        <h3>Vendas por Produto</h3>
+                        <p>Ranking de produtos</p>
+                    </div>
+                </div>
+                
+                <!-- Abas de Relatórios -->
+                <div class="tabs-container" id="tabsContainer">
+                    <button class="tab-btn active" data-tab="dashboard" onclick="abrirAba('dashboard')">📊 Dashboard</button>
+                    <button class="tab-btn" data-tab="movimento" onclick="abrirAba('movimento')">📋 Movimento Diário</button>
+                    <button class="tab-btn" data-tab="faturamento" onclick="abrirAba('faturamento')">💰 Faturamento</button>
+                    <button class="tab-btn" data-tab="vendas" onclick="abrirAba('vendas')">📦 Vendas por Produto</button>
+                </div>
+                
+                <!-- Tab: Dashboard -->
+                <div id="tab-dashboard" class="tab-content active">
+                    <div class="relatorio-container">
+                        <div class="dashboard-kpi" id="kpiContainer">
+                            <div class="kpi-card primary">
+                                <div class="kpi-icon">💰</div>
+                                <div class="kpi-value" id="kpiTotalVendas">R$ 0</div>
+                                <div class="kpi-label">Total de Vendas</div>
+                            </div>
+                            <div class="kpi-card success">
+                                <div class="kpi-icon">📦</div>
+                                <div class="kpi-value" id="kpiTotalProdutos">0</div>
+                                <div class="kpi-label">Produtos Vendidos</div>
+                            </div>
+                            <div class="kpi-card danger">
+                                <div class="kpi-icon">🔄</div>
+                                <div class="kpi-value" id="kpiTotalEntradas">0</div>
+                                <div class="kpi-label">Total de Entradas</div>
+                            </div>
+                            <div class="kpi-card warning">
+                                <div class="kpi-icon">📤</div>
+                                <div class="kpi-value" id="kpiTotalSaidas">0</div>
+                                <div class="kpi-label">Total de Saídas</div>
+                            </div>
+                            <div class="kpi-card info">
+                                <div class="kpi-icon">👥</div>
+                                <div class="kpi-value" id="kpiTotalClientes">0</div>
+                                <div class="kpi-label">Clientes Ativos</div>
+                            </div>
+                            <div class="kpi-card primary">
+                                <div class="kpi-icon">📊</div>
+                                <div class="kpi-value" id="kpiTicketMedio">R$ 0</div>
+                                <div class="kpi-label">Ticket Médio</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h3>Vendas por Mês</h3>
+                                <canvas id="chartVendasMes" style="max-height: 250px;"></canvas>
+                            </div>
+                            <div>
+                                <h3>Top 5 Produtos Mais Vendidos</h3>
+                                <canvas id="chartTopProdutos" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab: Movimento Diário -->
+                <div id="tab-movimento" class="tab-content">
+                    <div class="relatorio-container">
+                        <div class="relatorio-header">
+                            <h2>📋 Movimento Diário</h2>
+                            <div class="filtros-relatorio">
+                                <input type="date" id="movimentoData">
+                                <button class="btn-primary" onclick="carregarMovimentoDiario()">Filtrar</button>
+                                <button class="btn-excel" onclick="exportarExcel('movimento')">📊 Excel</button>
+                                <button class="btn-pdf" onclick="exportarPDF('movimento')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div id="movimentoContainer">
+                            <div style="text-align: center; padding: 20px;">Selecione uma data para visualizar</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab: Faturamento -->
+                <div id="tab-faturamento" class="tab-content">
+                    <div class="relatorio-container">
+                        <div class="relatorio-header">
+                            <h2>💰 Faturamento</h2>
+                            <div class="filtros-relatorio">
+                                <select id="faturamentoPlano">
+                                    <option value="diario">Diário</option>
+                                    <option value="semanal" selected>Semanal</option>
+                                    <option value="mensal">Mensal</option>
+                                    <option value="anual">Anual</option>
+                                </select>
+                                <button class="btn-primary" onclick="carregarFaturamento()">Filtrar</button>
+                                <button class="btn-excel" onclick="exportarExcel('faturamento')">📊 Excel</button>
+                                <button class="btn-pdf" onclick="exportarPDF('faturamento')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div id="faturamentoContainer">
+                            <div style="text-align: center; padding: 20px;">Carregando dados...</div>
+                        </div>
+                        <canvas id="chartFaturamento" style="max-height: 250px;"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Tab: Vendas por Produto -->
+                <div id="tab-vendas" class="tab-content">
+                    <div class="relatorio-container">
+                        <div class="relatorio-header">
+                            <h2>📦 Vendas por Produto</h2>
+                            <div class="filtros-relatorio">
+                                <input type="date" id="vendasDataInicio">
+                                <input type="date" id="vendasDataFim">
+                                <button class="btn-primary" onclick="carregarVendasProduto()">Filtrar</button>
+                                <button class="btn-excel" onclick="exportarExcel('vendas')">📊 Excel</button>
+                                <button class="btn-pdf" onclick="exportarPDF('vendas')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div id="vendasProdutoContainer">
+                            <div style="text-align: center; padding: 20px;">Selecione um período para visualizar</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/relatorios.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+
+

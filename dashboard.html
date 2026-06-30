@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Geral - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        /* ══════════════════════════════════════════
+           ESTILOS DO DASHBOARD PREMIUM
+           ══════════════════════════════════════════ */
+        :root {
+            --primary:  #eb5e28;
+            --success:  #16a34a;
+            --danger:   #dc2626;
+            --warning:  #d97706;
+            --info:     #2563eb;
+            --dark:     #1e1b18;
+            --gray:     #6b7280;
+            --border:   #e5e7eb;
+            --light:    #f9fafb;
+            --radius:   10px;
+            --shadow:   0 1px 4px rgba(0,0,0,.08);
+            --shadow-md:0 4px 16px rgba(0,0,0,.12);
+        }
+
+        .dashboard-header-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .dashboard-header-block h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .dashboard-header-block p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        /* ── GRID DE METRICAS ── */
+        .dashboard-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .metric-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 20px 16px;
+            box-shadow: var(--shadow);
+            border-top: 4px solid var(--border);
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .metric-card.primary { border-top-color: var(--primary); }
+        .metric-card.success { border-top-color: var(--success); }
+        .metric-card.info    { border-top-color: var(--info);    }
+        .metric-card.warning { border-top-color: var(--warning); }
+        .metric-card.danger  { border-top-color: var(--danger);  }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-weight: 600;
+        }
+
+        .metric-icon {
+            font-size: 20px;
+        }
+
+        .metric-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        /* ── GRID DE GRAFICOS ── */
+        .dashboard-charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dashboard-chart-box {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(204,197,185,.2);
+        }
+
+        .chart-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-box-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .chart-filters {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .chart-filters input[type="date"] {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        .btn-chart-filter {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-chart-filter:hover {
+            opacity: 0.9;
+        }
+
+        /* ── SEÇÃO INFERIOR ── */
+        .dashboard-bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-bottom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dashboard-list-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(204,197,185,.2);
+        }
+
+        .list-card-header {
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .list-card-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .ranking-product-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 13px;
+        }
+
+        .ranking-product-row:last-child {
+            border-bottom: none;
+        }
+
+        .product-rank-name {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .product-rank-stats {
+            text-align: right;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* Tabelas Simples */
+        .dashboard-simple-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .dashboard-simple-table th {
+            text-align: left;
+            padding: 10px;
+            background: #f9fafb;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .dashboard-simple-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .dashboard-simple-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="hold-transition">
+<div class="dashboard">
+
+    <!-- ── Sidebar ──────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>📦 Estoque Eletrônicos</h2>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="dashboard.html" class="active">📊 Dashboard</a></li>
+            <li><a href="clientes.html">👥 Clientes</a></li>
+            <li><a href="produtos.html">📦 Produtos</a></li>
+            <li><a href="categorias.html">🏷️ Categorias</a></li>
+            <li><a href="estoque.html">💾 Estoque</a></li>
+            <li><a href="entradas.html">📥 Entradas</a></li>
+            <li><a href="saidas.html">📤 Nova Venda</a></li>
+            <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+            <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+            <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+            <li><a href="relatorios.html">📈 Relatórios</a></li>
+            <li><a href="usuarios.html">👤 Usuários</a></li>
+        </ul>
+    </aside>
+
+    <!-- ── Main ─────────────────────────────────── -->
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <div class="user-info">
+                <span class="user-name" id="userName">Carregando...</span>
+                <span class="user-perfil" id="userPerfil"></span>
+                <button class="logout-btn" id="logoutBtn">Sair</button>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- Saudação & Header -->
+            <div class="dashboard-header-block">
+                <div>
+                    <h1 id="saudacaoDashboard">Carregando...</h1>
+                    <p id="dataAtual">—</p>
+                </div>
+            </div>
+
+            <!-- ── Grid de Métricas (Faturamento & KPIs) ── -->
+            <div class="dashboard-metrics-grid">
+                <div class="metric-card primary">
+                    <div class="metric-header">
+                        <span class="metric-title">Faturamento Diário</span>
+                        <span class="metric-icon">💵</span>
+                    </div>
+                    <div class="metric-value" id="kpiVendasHoje">—</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="metric-header">
+                        <span class="metric-title">Faturamento Semanal</span>
+                        <span class="metric-icon">📅</span>
+                    </div>
+                    <div class="metric-value" id="kpiVendasSemana">—</div>
+                </div>
+                <div class="metric-card info">
+                    <div class="metric-header">
+                        <span class="metric-title">Faturamento Mensal</span>
+                        <span class="metric-icon">💰</span>
+                    </div>
+                    <div class="metric-value" id="kpiVendasMes">—</div>
+                </div>
+                <div class="metric-card warning">
+                    <div class="metric-header">
+                        <span class="metric-title">Faturamento Anual</span>
+                        <span class="metric-icon">📈</span>
+                    </div>
+                    <div class="metric-value" id="kpiVendasAno">—</div>
+                </div>
+                <div class="metric-card primary">
+                    <div class="metric-header">
+                        <span class="metric-title">Ticket Médio</span>
+                        <span class="metric-icon">🛍️</span>
+                    </div>
+                    <div class="metric-value" id="kpiTicketMedio">—</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="metric-header">
+                        <span class="metric-title">Clientes Ativos</span>
+                        <span class="metric-icon">👥</span>
+                    </div>
+                    <div class="metric-value" id="kpiTotalClientes">—</div>
+                </div>
+            </div>
+
+            <!-- ── Grid de Gráficos (Elegantes) ── -->
+            <div class="dashboard-charts-grid">
+                <!-- Gráfico de Saídas / Faturamento Mensal Acumulado -->
+                <div class="dashboard-chart-box">
+                    <div class="chart-box-header">
+                        <h3>📈 Histórico de Saídas (Mensal)</h3>
+                    </div>
+                    <div style="position: relative; height: 260px;">
+                        <canvas id="chartTotalSaidas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Movimento Diário (Filtrável) -->
+                <div class="dashboard-chart-box">
+                    <div class="chart-box-header">
+                        <h3>📊 Movimento Diário (Faturamento)</h3>
+                        <div class="chart-filters">
+                            <input type="date" id="filtroDataInicio">
+                            <input type="date" id="filtroDataFim">
+                            <button class="btn-chart-filter" id="btnFiltrarMovimento">Filtrar</button>
+                        </div>
+                    </div>
+                    <div style="position: relative; height: 260px;">
+                        <canvas id="chartMovimentoDiario"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Seção Inferior (Tabelas / Listagens) ── -->
+            <div class="dashboard-bottom-grid">
+                <!-- Coluna 1: Top 20 Produtos -->
+                <div class="dashboard-list-card">
+                    <div class="list-card-header">
+                        <h3>🏆 Top 20 Produtos Mais Vendidos</h3>
+                    </div>
+                    <div id="produtosRankingContainer" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                        <!-- Preenchido via Javascript -->
+                        <div style="text-align: center; padding: 20px; color: var(--gray);">Carregando ranking...</div>
+                    </div>
+                </div>
+
+                <!-- Coluna 2: Painel de Entradas (Notas Fiscais) -->
+                <div class="dashboard-list-card">
+                    <div class="list-card-header">
+                        <h3>📥 Painel de Entradas Recentes</h3>
+                    </div>
+                    <div style="overflow-x: auto; max-height: 400px;">
+                        <table class="dashboard-simple-table">
+                            <thead>
+                                <tr>
+                                    <th>Nota / Série</th>
+                                    <th>Data Compra</th>
+                                    <th>Fornecedor</th>
+                                    <th style="text-align: right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entradasRecentesBody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--gray);">Carregando entradas...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /content -->
+    </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth-check.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/active-nav.js"></script>
+</body>
+</html>

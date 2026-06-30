@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fornecedores - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filters-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .filters-container input {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .badge-tipo {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .badge-fornecedor {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .badge-cliente {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-ativo {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-inativo {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .form-group-full {
+            grid-column: span 2;
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-group-full {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+            
+            <div class="content">
+                <div class="page-header">
+                    <h1>🏭 Fornecedores</h1>
+                    <button class="btn-primary" id="btnNovoFornecedor">+ Novo Fornecedor</button>
+                </div>
+                
+                <div class="filters-container">
+                    <input type="text" id="searchInput" placeholder="Pesquisar por nome, documento ou email...">
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Documento</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr><td colspan="7" style="text-align: center;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Fornecedor -->
+    <div id="modalFornecedor" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Fornecedor</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="formFornecedor">
+                    <input type="hidden" id="fornecedorId">
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nome *</label>
+                            <input type="text" id="nome" placeholder="Nome do fornecedor" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Documento (CNPJ/CPF)</label>
+                            <input type="text" id="documento" placeholder="CNPJ ou CPF">
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone *</label>
+                            <input type="text" id="telefone" placeholder="(XX) XXXX-XXXX" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="email" placeholder="fornecedor@email.com">
+                        </div>
+                        <div class="form-group-full">
+                            <label>Endereço</label>
+                            <input type="text" id="endereco" placeholder="Rua, Avenida...">
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="ativo">
+                                <option value="true">✅ Ativo</option>
+                                <option value="false">❌ Inativo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Observação</label>
+                            <input type="text" id="observacao" placeholder="Observações sobre o fornecedor">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-warning" id="btnCancelar">Cancelar</button>
+                <button class="btn-primary" id="btnSalvar">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/fornecedores.js"></script>
+<script src="js/active-nav.js"></script>`n</body>
+</html>
+
