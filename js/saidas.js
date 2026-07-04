@@ -456,14 +456,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function adicionarAoCarrinho(produto, serial) {
         const estoque = produto.estoque_total ?? produto.estoque ?? 0;
 
+        // Calcular a quantidade total deste produto já adicionada ao carrinho
+        const totalNoCarrinho = carrinho
+            .filter(item => item.id === produto.id)
+            .reduce((sum, item) => sum + item.quantidade, 0);
+
+        if (totalNoCarrinho + 1 > estoque) {
+            mostrarNotificacao(`Estoque insuficiente! Disponível: ${estoque} (Já no carrinho: ${totalNoCarrinho})`, 'error');
+            return;
+        }
+
+        if (serial) {
+            // Verificar se o serial selecionado já está no carrinho
+            const serialNoCarrinho = carrinho.find(item => item.serial_id === serial.id);
+            if (serialNoCarrinho) {
+                mostrarNotificacao('Este número de série/IMEI já está no carrinho!', 'error');
+                return;
+            }
+        }
+
         const itemExistente = carrinho.find(item =>
             item.id === produto.id &&
             (!serial || item.serial === serial?.numero_serie)
         );
 
         if (itemExistente) {
-            if (itemExistente.quantidade + 1 > estoque) {
-                mostrarNotificacao(`Estoque insuficiente! Disponível: ${estoque}`, 'error');
+            if (serial) {
+                mostrarNotificacao('Este número de série/IMEI já está no carrinho!', 'error');
                 return;
             }
             itemExistente.quantidade++;
@@ -512,7 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div>
                     <input type="number" min="1" value="${item.quantidade}"
                            onchange="atualizarQuantidade(${index}, this.value)"
-                           style="width:60px;padding:5px;text-align:center;border:1px solid var(--border);border-radius:4px;">
+                           style="width:60px;padding:5px;text-align:center;border:1px solid var(--border);border-radius:4px;"
+                           ${item.serial_id ? 'disabled' : ''}>
                 </div>
                 <div><strong>${formatarMoeda(item.subtotal)}</strong></div>
                 <button class="btn-remover" onclick="removerDoCarrinho(${index})">✕</button>
@@ -523,7 +543,17 @@ document.addEventListener('DOMContentLoaded', () => {
         quantidade = parseInt(quantidade);
         if (isNaN(quantidade) || quantidade < 1) quantidade = 1;
 
-        const produto = produtos.find(p => p.id === carrinho[index].id);
+        const cartItem = carrinho[index];
+        if (cartItem.serial_id) {
+            mostrarNotificacao('Produtos com número de série têm quantidade limitada a 1!', 'error');
+            cartItem.quantidade = 1;
+            cartItem.subtotal = cartItem.valor_venda;
+            renderizarCarrinho();
+            calcularTotais();
+            return;
+        }
+
+        const produto = produtos.find(p => p.id === cartItem.id);
         const estoque = produto ? (produto.estoque_total ?? produto.estoque ?? 0) : 999;
 
         if (quantidade > estoque) {
@@ -531,8 +561,8 @@ document.addEventListener('DOMContentLoaded', () => {
             quantidade = estoque;
         }
 
-        carrinho[index].quantidade = quantidade;
-        carrinho[index].subtotal   = quantidade * carrinho[index].valor_venda;
+        cartItem.quantidade = quantidade;
+        cartItem.subtotal   = quantidade * cartItem.valor_venda;
         renderizarCarrinho();
         calcularTotais();
     };
@@ -819,30 +849,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const horaVenda = new Date().toLocaleTimeString('pt-BR');
 
             document.getElementById('comprovanteBody').innerHTML = `
-                <div id="comprovante" style="padding:20px;font-family:'Courier New',monospace;max-width:800px;margin:0 auto;font-size:12px;">
+                <div id="comprovante" style="padding:15px 5px;font-family:'Courier New',monospace;max-width:400px;margin:0 auto;font-size:14px;line-height:1.3;color:#000;box-sizing:border-box;">
 
-                    <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:15px;margin-bottom:20px;">
-                        <h2 style="margin:0;font-size:18px;">${configLoja.nome || 'Estoque Eletrônicos'}</h2>
-                        ${configLoja.cnpj     ? `<p style="margin:4px 0;">CNPJ: ${configLoja.cnpj}</p>` : ''}
-                        ${configLoja.endereco ? `<p style="margin:4px 0;">${configLoja.endereco}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>` : ''}
-                        ${configLoja.cidade   ? `<p style="margin:4px 0;">${configLoja.cidade} - ${configLoja.estado || ''} | CEP: ${configLoja.cep || ''}</p>` : ''}
-                        ${configLoja.telefone ? `<p style="margin:4px 0;">Tel: ${configLoja.telefone}</p>` : ''}
-                        ${configLoja.email    ? `<p style="margin:4px 0;">Email: ${configLoja.email}</p>` : ''}
+                    <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:10px;margin-bottom:12px;">
+                        <h2 style="margin:0;font-size:18px;font-weight:bold;">${configLoja.nome || 'Estoque Eletrônicos'}</h2>
+                        ${configLoja.cnpj     ? `<p style="margin:2px 0;font-size:13px;">CNPJ: ${configLoja.cnpj}</p>` : ''}
+                        ${configLoja.endereco ? `<p style="margin:2px 0;font-size:13px;">${configLoja.endereco}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>` : ''}
+                        ${configLoja.cidade   ? `<p style="margin:2px 0;font-size:13px;">${configLoja.cidade} - ${configLoja.estado || ''} | CEP: ${configLoja.cep || ''}</p>` : ''}
+                        ${configLoja.telefone ? `<p style="margin:2px 0;font-size:13px;">Tel: ${configLoja.telefone}</p>` : ''}
+                        ${configLoja.email    ? `<p style="margin:2px 0;font-size:13px;">Email: ${configLoja.email}</p>` : ''}
                     </div>
 
-                    <div style="text-align:center;margin-bottom:20px;">
-                        <h3 style="margin:0;">${cancelada ? '⚠️ CANCELADO — ' : ''}COMPROVANTE DE VENDA</h3>
-                        <p style="margin:5px 0;"><strong>Nº ${venda.id}</strong> | ${formatarData(venda.data)} às ${horaVenda}</p>
+                    <div style="text-align:center;margin-bottom:12px;">
+                        <h3 style="margin:0;font-size:15px;font-weight:bold;">${cancelada ? '⚠️ CANCELADO — ' : ''}COMPROVANTE DE VENDA</h3>
+                        <p style="margin:4px 0;font-size:13px;"><strong>Nº ${venda.id}</strong> | ${formatarData(venda.data)} às ${horaVenda}</p>
                         ${cancelada ? `
-                            <p style="color:#dc2626;margin-top:10px;">
+                            <p style="color:#dc2626;margin-top:8px;font-size:13px;">
                                 <strong>VENDA CANCELADA</strong><br>
                                 Motivo: ${venda.motivo_cancelamento || 'Não informado'}<br>
                                 Cancelado em: ${venda.cancelado_em ? new Date(venda.cancelado_em).toLocaleString('pt-BR') : '-'}
                             </p>` : ''}
                     </div>
 
-                    <div style="border:1px solid #ccc;padding:10px;margin-bottom:20px;">
-                        <h4 style="margin:0 0 8px;">DADOS DO CLIENTE</h4>
+                    <div style="margin-bottom:12px;font-size:13px;">
+                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
+                        <h4 style="margin:0 0 6px;font-size:14px;font-weight:bold;">DADOS DO CLIENTE</h4>
                         <p style="margin:2px 0;"><strong>Nome:</strong> ${cliente.nome || 'Cliente não informado'}</p>
                         ${cliente.cpf_cnpj ? `<p style="margin:2px 0;"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj}</p>` : ''}
                         ${cliente.telefone ? `<p style="margin:2px 0;"><strong>Tel:</strong> ${cliente.telefone}</p>` : ''}
@@ -850,61 +881,60 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${cliente.endereco ? `<p style="margin:2px 0;"><strong>End.:</strong> ${cliente.endereco}, ${cliente.numero || ''} — ${cliente.cidade || ''}/${cliente.estado || ''}</p>` : ''}
                     </div>
 
-                    <div style="margin-bottom:20px;">
-                        <h4 style="margin:0 0 8px;">ITENS VENDIDOS</h4>
-                        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                    <div style="margin-bottom:12px;">
+                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
+                        <h4 style="margin:0 0 6px;font-size:14px;font-weight:bold;">ITENS VENDIDOS</h4>
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.2;">
                             <thead>
-                                <tr style="background:#f0f0f0;border-bottom:1px solid #000;">
-                                    <th style="padding:8px;text-align:left;">Código</th>
-                                    <th style="padding:8px;text-align:left;">Produto / Série</th>
-                                    <th style="padding:8px;text-align:center;">Qtd</th>
-                                    <th style="padding:8px;text-align:right;">Unit.</th>
-                                    <th style="padding:8px;text-align:right;">Subtotal</th>
+                                <tr style="border-bottom:1px dashed #000;">
+                                    <th style="padding:4px 0;text-align:left;">Cod/Produto/Série</th>
+                                    <th style="padding:4px 0;text-align:center;width:40px;">Qtd</th>
+                                    <th style="padding:4px 0;text-align:right;width:90px;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${(itens || []).map(item => `
-                                    <tr style="border-bottom:1px solid #ddd;">
-                                        <td style="padding:8px;vertical-align:top;">${item.produtos?.codigo || item.produto_id}</td>
-                                        <td style="padding:8px;vertical-align:top;">
+                                    <tr style="border-bottom:1px dashed #eee;">
+                                        <td style="padding:5px 0;vertical-align:top;">
+                                            <span style="font-size:11px;color:#555;">${item.produtos?.codigo || item.produto_id}</span><br>
                                             <strong>${item.produtos?.nome || 'Produto'}</strong>
-                                            ${item.numero_serie ? `<br><small>🔢 Série: <strong>${item.numero_serie}</strong></small>` : ''}
-                                            ${item.imei ? `<br><small>📱 IMEI: ${item.imei}</small>` : ''}
+                                            ${item.numero_serie ? `<br><small style="color:#2563eb;">🔢 Série: <strong>${item.numero_serie}</strong></small>` : ''}
+                                            ${item.imei ? `<br><small style="color:#6b7280;">📱 IMEI: ${item.imei}</small>` : ''}
                                         </td>
-                                        <td style="padding:8px;text-align:center;">${item.quantidade}</td>
-                                        <td style="padding:8px;text-align:right;">${formatarMoeda(item.valor_unitario)}</td>
-                                        <td style="padding:8px;text-align:right;">${formatarMoeda(item.subtotal)}</td>
+                                        <td style="padding:5px 0;vertical-align:top;text-align:center;">${item.quantidade}</td>
+                                        <td style="padding:5px 0;vertical-align:top;text-align:right;">${formatarMoeda(item.subtotal)}</td>
                                     </tr>`).join('')}
                             </tbody>
                             <tfoot>
-                                <tr style="border-top:2px solid #000;">
-                                    <td colspan="4" style="padding:8px;text-align:right;"><strong>Subtotal:</strong></td>
-                                    <td style="padding:8px;text-align:right;"><strong>${formatarMoeda(subtotal)}</strong></td>
+                                <tr style="border-top:1px dashed #000;">
+                                    <td colspan="2" style="padding:6px 0 2px;text-align:right;">Subtotal:</td>
+                                    <td style="padding:6px 0 2px;text-align:right;">${formatarMoeda(subtotal)}</td>
                                 </tr>
                                 ${desconto > 0 ? `
                                 <tr>
-                                    <td colspan="4" style="padding:8px;text-align:right;"><strong>Desconto:</strong></td>
-                                    <td style="padding:8px;text-align:right;"><strong>- ${formatarMoeda(desconto)}</strong></td>
+                                    <td colspan="2" style="padding:2px 0;text-align:right;">Desconto:</td>
+                                    <td style="padding:2px 0;text-align:right;">-${formatarMoeda(desconto)}</td>
                                 </tr>` : ''}
-                                <tr style="background:#f0f0f0;font-size:14px;">
-                                    <td colspan="4" style="padding:8px;text-align:right;"><strong>TOTAL:</strong></td>
-                                    <td style="padding:8px;text-align:right;"><strong>${formatarMoeda(total)}</strong></td>
+                                <tr style="font-size:15px;font-weight:bold;">
+                                    <td colspan="2" style="padding:4px 0;text-align:right;border-top:1px dashed #000;">TOTAL:</td>
+                                    <td style="padding:4px 0;text-align:right;border-top:1px dashed #000;">${formatarMoeda(total)}</td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
 
-                    <div style="border:1px solid #ccc;padding:10px;margin-bottom:20px;">
+                    <div style="margin-bottom:12px;font-size:13px;">
+                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
                         <p style="margin:2px 0;"><strong>Forma de Pagamento:</strong> ${venda.forma_pagamento || '-'}</p>
                         ${venda.observacao ? `<p style="margin:2px 0;"><strong>Observação:</strong> ${venda.observacao}</p>` : ''}
                     </div>
 
-                    <div style="text-align:center;border-top:1px dashed #000;padding-top:15px;font-size:10px;">
-                        <p>${configLoja.mensagem_garantia || 'Produto com garantia de 90 dias contra defeitos de fabricação.'}</p>
-                        <p>Este documento é um comprovante de venda válido.</p>
-                        <p>Obrigado pela preferência! 😊</p>
+                    <div style="text-align:center;border-top:1px dashed #000;padding-top:10px;font-size:11px;line-height:1.2;">
+                        <p style="margin:4px 0;">${configLoja.mensagem_garantia || 'Produto com garantia de 90 dias contra defeitos de fabricação.'}</p>
+                        <p style="margin:4px 0;">Este documento é um comprovante de venda válido.</p>
+                        <p style="margin:4px 0;font-weight:bold;">Obrigado pela preferência! 😊</p>
                     </div>
-                </div>`;
+                </div>`;;
 
             document.getElementById('modalComprovante').style.display = 'flex';
 
@@ -924,7 +954,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const janela = window.open('', '_blank');
         janela.document.write(`
             <html><head><title>Comprovante de Venda</title>
-            <style>body{font-family:monospace;margin:20px;} @media print{button{display:none;}}</style>
+            <style>
+                @page { margin: 0; size: auto; }
+                body {
+                    font-family: 'Courier New', Courier, monospace;
+                    margin: 0;
+                    padding: 4mm;
+                    width: 100%;
+                    max-width: 72mm;
+                    margin: 0 auto;
+                    font-size: 14px;
+                    line-height: 1.3;
+                    box-sizing: border-box;
+                    background: #fff;
+                    color: #000;
+                }
+                @media print {
+                    html, body {
+                        width: 72mm;
+                        margin: 0;
+                        padding: 2mm 2mm 5mm 2mm;
+                    }
+                    button { display: none; }
+                }
+            </style>
             </head><body>${conteudo}
             <script>window.print();setTimeout(()=>window.close(),500);<\/script>
             </body></html>`);
@@ -937,11 +990,59 @@ document.addEventListener('DOMContentLoaded', () => {
         const janela = window.open('', '_blank', 'width=900,height=700');
         janela.document.write(`
             <html><head><title>Comprovante de Venda</title>
-            <style>body{font-family:monospace;margin:20px;} @media print{button{display:none;}}</style>
+            <style>
+                @page { margin: 0; size: auto; }
+                body {
+                    font-family: 'Courier New', Courier, monospace;
+                    margin: 0;
+                    padding: 4mm;
+                    width: 100%;
+                    max-width: 72mm;
+                    margin: 0 auto;
+                    font-size: 14px;
+                    line-height: 1.3;
+                    box-sizing: border-box;
+                    background: #fff;
+                    color: #000;
+                }
+                @media print {
+                    html, body {
+                        width: 72mm;
+                        margin: 0;
+                        padding: 2mm 2mm 5mm 2mm;
+                    }
+                    .no-print { display: none; }
+                }
+                .no-print {
+                    text-align: right;
+                    margin-bottom: 12px;
+                    border-bottom: 1px solid #ccc;
+                    padding-bottom: 8px;
+                }
+                .btn-print-pdf {
+                    background: #eb5e28;
+                    color: #fff;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                .btn-close-pdf {
+                    background: #888;
+                    color: #fff;
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin-left: 6px;
+                    font-weight: bold;
+                }
+            </style>
             </head><body>
-            <div style="text-align:right;margin-bottom:12px;" class="no-print">
-                <button onclick="window.print()" style="background:#eb5e28;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">🖨️ Imprimir / Salvar PDF</button>
-                <button onclick="window.close()" style="background:#888;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;margin-left:6px;">Fechar</button>
+            <div class="no-print">
+                <button class="btn-print-pdf" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+                <button class="btn-close-pdf" onclick="window.close()">Fechar</button>
             </div>
             ${el.innerHTML}
             <script>window.onload=function(){setTimeout(()=>window.print(),300);};<\/script>
@@ -966,12 +1067,94 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // =====================================================
+    // CADASTRO RÁPIDO DE CLIENTE
+    // =====================================================
+
+    const modalNovoCliente = document.getElementById('modalNovoCliente');
+    const btnAdicionarClienteRapido = document.getElementById('btnAdicionarClienteRapido');
+    const btnCancelarNovoCliente = document.getElementById('btnCancelarNovoCliente');
+    const btnSalvarNovoCliente = document.getElementById('btnSalvarNovoCliente');
+    const closeNovoCliente = document.querySelector('.close-novo-cliente');
+
+    btnAdicionarClienteRapido?.addEventListener('click', () => {
+        // Limpar os campos do modal
+        document.getElementById('novoClienteNome').value = '';
+        document.getElementById('novoClienteTelefone').value = '';
+        document.getElementById('novoClienteCpfCnpj').value = '';
+        document.getElementById('novoClienteEmail').value = '';
+        document.getElementById('novoClienteEndereco').value = '';
+        
+        modalNovoCliente.style.display = 'flex';
+        document.getElementById('novoClienteNome').focus();
+    });
+
+    const fecharModalCliente = () => {
+        modalNovoCliente.style.display = 'none';
+    };
+
+    btnCancelarNovoCliente?.addEventListener('click', fecharModalCliente);
+    closeNovoCliente?.addEventListener('click', fecharModalCliente);
+
+    btnSalvarNovoCliente?.addEventListener('click', async () => {
+        const nome = document.getElementById('novoClienteNome').value.trim();
+        const telefone = document.getElementById('novoClienteTelefone').value.trim();
+        const cpf_cnpj = document.getElementById('novoClienteCpfCnpj').value.trim();
+        const email = document.getElementById('novoClienteEmail').value.trim();
+        const endereco = document.getElementById('novoClienteEndereco').value.trim();
+
+        if (!nome || !telefone) {
+            mostrarNotificacao('Por favor, preencha o Nome e o Telefone!', 'error');
+            return;
+        }
+
+        btnSalvarNovoCliente.disabled = true;
+        btnSalvarNovoCliente.textContent = 'Salvando...';
+
+        try {
+            const dados = {
+                nome,
+                telefone,
+                cpf_cnpj: cpf_cnpj || null,
+                email: email || null,
+                endereco: endereco || null,
+                data_cadastro: new Date().toISOString()
+            };
+
+            const { data, error } = await supabaseClient
+                .from('clientes')
+                .insert([dados])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Adicionar ao array local para busca
+            clientes.push(data);
+
+            // Selecionar no PDV
+            selecionarCliente(data.id, data.nome, data.cpf_cnpj);
+
+            mostrarNotificacao('Cliente cadastrado e selecionado com sucesso!', 'success');
+            fecharModalCliente();
+        } catch (error) {
+            console.error('Erro ao cadastrar cliente:', error);
+            mostrarNotificacao('Erro ao cadastrar cliente: ' + error.message, 'error');
+        } finally {
+            btnSalvarNovoCliente.disabled = false;
+            btnSalvarNovoCliente.textContent = 'Salvar e Selecionar';
+        }
+    });
+
     window.onclick = (event) => {
         if (event.target === document.getElementById('modalComprovante'))
             document.getElementById('modalComprovante').style.display = 'none';
         if (event.target === document.getElementById('modalSerial')) {
             document.getElementById('modalSerial').style.display = 'none';
             produtoSerialPendente = null;
+        }
+        if (event.target === modalNovoCliente) {
+            fecharModalCliente();
         }
     };
 

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do Usuário - Sistema de Estoque e Vendas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ══ ESTILOS DE TELA E PÁGINA ════════════════════ */
+        :root {
+            --primary: #eb5e28;
+            --primary-dark: #d14a1a;
+            --dark: #252422;
+            --dark-light: #403d39;
+            --light: #fffcf2;
+            --gray: #6b7280;
+            --border: #ccc5b9;
+            --success: #2d6a4f;
+            --success-light: #d1e7dd;
+            --danger: #c1121f;
+            --danger-light: #f8d7da;
+            --info: #0369a1;
+            --info-light: #e0f2fe;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f3ef;
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .no-print-bar {
+            background-color: var(--dark);
+            color: #fff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .no-print-bar h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .btn-print {
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(235,94,40,0.3);
+        }
+
+        .btn-print:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 850px;
+            background-color: #fff;
+            margin: 40px auto;
+            padding: 60px 80px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.06);
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        /* ══ CAPA DO MANUAL ══════════════════════════════ */
+        .cover-page {
+            text-align: center;
+            padding: 100px 0 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 70vh;
+            box-sizing: border-box;
+        }
+
+        .cover-logo {
+            font-size: 56px;
+            margin-bottom: 20px;
+        }
+
+        .cover-title {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--dark);
+            margin: 0 0 10px;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+
+        .cover-title span {
+            color: var(--primary);
+        }
+
+        .cover-subtitle {
+            font-size: 20px;
+            font-weight: 400;
+            color: var(--gray);
+            margin: 0 0 80px;
+        }
+
+        .cover-footer {
+            margin-top: auto;
+            border-top: 2px solid var(--primary);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        /* ══ ELEMENTOS DE TEXTO E SEÇÕES ═════════════════ */
+        .page-break {
+            page-break-before: always;
+            padding-top: 30px;
+        }
+
+        h1 {
+            color: var(--dark);
+            font-size: 26px;
+            font-weight: 800;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 8px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            color: var(--dark-light);
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 30px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        p {
+            font-size: 15px;
+            color: var(--dark-light);
+            margin-bottom: 16px;
+            text-align: justify;
+        }
+
+        ol, ul {
+            font-size: 15px;
+            color: var(--dark-light);
+            margin-bottom: 20px;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f1f0ea;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* ══ CAIXAS DE MENSAGEM ══════════════════════════ */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-left: 4px solid;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .alert-tip {
+            background-color: var(--success-light);
+            border-left-color: var(--success);
+            color: #1b4d3a;
+        }
+
+        .alert-warning {
+            background-color: var(--danger-light);
+            border-left-color: var(--danger);
+            color: #721c24;
+        }
+
+        .alert-info {
+            background-color: var(--info-light);
+            border-left-color: var(--info);
+            color: #0c5460;
+        }
+
+        /* ══ TABELAS ═════════════════════════════════════ */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: var(--dark);
+            color: #fff;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--dark-light);
+        }
+
+        tr:nth-child(even) td {
+            background-color: #faf9f6;
+        }
+
+        /* ══ PASSOS / STEPS ══════════════════════════════ */
+        .step-container {
+            margin: 25px 0;
+        }
+
+        .step {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .step-number {
+            background-color: var(--primary);
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-content h3 {
+            margin: 0 0 4px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        /* ══ REGRAS DE IMPRESSÃO ═════════════════════════ */
+        @media print {
+            body {
+                background-color: #fff;
+                color: #000;
+            }
+
+            .no-print-bar {
+                display: none;
+            }
+
+            .container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .page-break {
+                page-break-before: always;
+                padding-top: 0;
+            }
+
+            a {
+                text-decoration: none;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra de ações superior (Oculta na impressão) -->
+    <div class="no-print-bar">
+        <h2>📖 Manual do Sistema de Estoque & Vendas</h2>
+        <button class="btn-print" onclick="window.print()">🖨️ Salvar em PDF / Imprimir</button>
+    </div>
+
+    <!-- Conteúdo do Manual -->
+    <div class="container">
+
+        <!-- ── CAPA DO MANUAL ─────────────────────────── -->
+        <div class="cover-page">
+            <div class="cover-logo">📦</div>
+            <h1 class="cover-title">Manual do <span>Usuário</span></h1>
+            <p class="cover-subtitle">Guia Prático de Operação do Sistema de Vendas (PDV) e Controle de Estoque</p>
+            
+            <div class="cover-footer">
+                <span>Original Eletrônicos Store</span>
+                <span>Versão 2.4 (Revisada)</span>
+                <span>Julho, 2026</span>
+            </div>
+        </div>
+
+        <!-- ── INTRODUÇÃO ─────────────────────────────── -->
+        <div class="page-break">
+            <h1>1. Introdução ao Sistema</h1>
+            <p>
+                Este manual foi desenvolvido para guiar colaboradores, operadores de caixa e administradores no manuseio cotidiano do <strong>Sistema de Estoque e Vendas</strong>. O software unifica o controle de fluxo de caixa (PDV), faturamentos de vendas, estornos por devoluções, controle de garantia e gestão detalhada de produtos comuns e itens com número de série/IMEI obrigatório (eletrônicos e celulares).
+            </p>
+            
+            <div class="alert alert-info">
+                <div class="alert-title">ℹ️ Nota sobre Segurança e Acessos</div>
+                <div>As funções exibidas no menu lateral do sistema variam de acordo com o perfil cadastrado para o seu usuário (Admin, Gerente, Vendedor, Técnico ou Básico). Caso necessite de alguma funcionalidade indisponível, contate o administrador do sistema.</div>
+            </div>
+
+            <h2>🎯 Principais Módulos do Sistema:</h2>
+            <ul>
+                <li><strong>📊 Dashboard:</strong> Visão geral de faturamentos diários/mensais, ticket médio e alertas de estoque crítico.</li>
+                <li><strong>👥 Clientes:</strong> Cadastro completo e histórico de compras de clientes.</li>
+                <li><strong>📦 Produtos e Categorias:</strong> Cadastro de especificações de produtos, marcas, modelos e parametrizações (ex. exigência de serial).</li>
+                <li><strong>💾 Estoque:</strong> Consulta de saldos físicos e listagem de números de série disponíveis no banco de dados.</li>
+                <li><strong>📥 Entradas:</strong> Entrada de novas mercadorias e vínculo a fornecedores.</li>
+                <li><strong>🛒 Nova Venda (PDV):</strong> Painel de vendas rápido de caixa, integrado com leitores de código de barras e impressoras de cupom.</li>
+                <li><strong>🔄 Devoluções:</strong> Lançamento de estornos e retorno físico de itens devolvidos ao estoque de forma automatizada.</li>
+            </ul>
+        </div>
+
+        <!-- ── TELA DE NOVA VENDA (PDV) ────────────────── -->
+        <div class="page-break">
+            <h1>2. Operação do Ponto de Venda (PDV)</h1>
+            <p>
+                A tela de <strong>Nova Venda</strong> (PDV) é o coração da operação do caixa. Ela foi desenhada em duas colunas para maior agilidade: à esquerda, a pesquisa e seleção de produtos; à direita, a montagem do carrinho de compras e condições de faturamento.
+            </p>
+
+            <h2>🛒 Fluxo Passo a Passo para Realizar Venda:</h2>
+            <div class="step-container">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Pesquisa e Seleção de Itens</h3>
+                        <p>No painel esquerdo, pesquise o produto desejado por Nome, Código, IMEI ou Serial. Clique sobre o produto para adicioná-lo ao carrinho.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Identificação de Serial / IMEI (Se Aplicável)</h3>
+                        <p>Caso o produto selecionado exija controle (ex: Celular), um modal se abrirá na tela exibindo os números de série disponíveis no estoque para aquele produto. Clique no serial desejado ou bipe com o leitor de código de barras para confirmar.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Identificação do Cliente</h3>
+                        <p>No painel do carrinho, comece a digitar o nome, telefone ou CPF do cliente. O sistema sugerirá opções cadastradas. Caso seja um cliente novo, você poderá cadastrá-lo na hora clicando no botão verde <code>➕</code> ao lado da busca.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Descontos, Acréscimos e Faturamento</h3>
+                        <p>Informe valores de Desconto ou Acréscimo (se houver), escolha a <strong>Forma de Pagamento</strong> clicando em uma das opções sugeridas (Dinheiro, Pix, Cartão, etc.) e preencha as observações da venda se necessário.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h3>Finalização e Emissão do Comprovante</h3>
+                        <p>Clique em <strong>✅ Finalizar Venda</strong>. O caixa será faturado, o saldo do produto baixado e o modal de comprovante de venda se abrirá para impressão ou download.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <div class="alert-title">⚠️ Regra de Quantidade para Seriais</div>
+                <div>Produtos com controle de IMEI/Número de Série têm sua quantidade travada em exatamente 1 unidade por linha de carrinho. O campo de quantidade ficará cinza (desabilitado). Para vender 2 produtos iguais com seriais diferentes, insira cada um escolhendo seus respectivos números de série sequencialmente.</div>
+            </div>
+        </div>
+
+        <!-- ── DEVOLUÇÕES ─────────────────────────────── -->
+        <div class="page-break">
+            <h1>3. Rotina de Devoluções de Vendas</h1>
+            <p>
+                A rotina de devoluções é utilizada para realizar estornos parciais ou completos de vendas cuja janela inicial de cancelamento rápido (2 horas) já tenha expirado. Esta rotina garante que o cliente receba o estorno correto e os itens/seriais retornem de forma segura para o saldo físico de estoque.
+            </p>
+
+            <h2>🔍 Como Localizar uma Venda para Devolução:</h2>
+            <p>No módulo <strong>Devoluções</strong> do menu lateral, a barra de pesquisa permite encontrar as vendas ativas instantaneamente a partir de:</p>
+            <ol>
+                <li><strong>Número da Venda:</strong> Digite o número da venda (ex. <code>37</code>) e pressione Enter.</li>
+                <li><strong>Nome do Cliente:</strong> Busque pelo nome do cliente registrado na compra.</li>
+                <li><strong>CPF ou CNPJ:</strong> Busque pelo documento fiscal informado no faturamento.</li>
+                <li><strong>Número de Série / IMEI:</strong> Informa o serial do aparelho. O sistema identificará exatamente qual venda contém aquele item correspondente.</li>
+            </ol>
+
+            <h2>🛡️ Travas de Segurança contra Dupla Devolução:</h2>
+            <p>
+                Para evitar erros operacionais críticos (como estornar o mesmo produto mais de uma vez ou duplicar saldo de mercadoria), o sistema opera sob as seguintes regras rígidas de segurança:
+            </p>
+            <ul>
+                <li><strong>Estorno de Seriais/IMEIs Únicos:</strong> Assim que um celular ou serial específico é devolvido, a linha correspondente no modal fica em <strong>marca d'água (cinza e bloqueada)</strong>, indicando a etiqueta <code>(Já Devolvido)</code>. O sistema bloqueia novas tentativas de marcar o item.</li>
+                <li><strong>Bloqueio de Saldo Excedente:</strong> Em produtos comuns (como carregadores e cabos), o limite máximo permitido para devolução é travado em: <code>Quantidade Vendida - Quantidade já Devolvida Anteriormente</code>.</li>
+                <li><strong>Devolução Completa de Venda:</strong> Caso todos os produtos da venda tenham sido devolvidos no passado, ao abrir a tela de devoluções, o sistema exibirá o alerta <code>⚠️ Esta venda já foi devolvida por completo!</code> e desabilitará por definitivo o botão de confirmação.</li>
+            </ul>
+
+            <div class="alert alert-tip">
+                <div class="alert-title">💡 Dica de Integração de Estoque</div>
+                <div>Ao confirmar uma devolução com sucesso, o sistema insere automaticamente um registro no relatório de Entradas (como Devolução de Venda), devolve as unidades físicas ao saldo do produto e altera a situação dos números de série estornados de volta para <code>Disponível</code> no controle de inventário.</div>
+            </div>
+        </div>
+
+        <!-- ── CADASTRO DE CLIENTE E DOCUMENTO ─────────── -->
+        <div class="page-break">
+            <h1>4. Gestão de Clientes e Cadastros</h1>
+            <p>
+                O sistema permite a administração completa da base de clientes de duas formas complementares: através da listagem do menu principal ou de forma rápida durante a operação de venda.
+            </p>
+
+            <h2>👥 Cadastro Rápido de Cliente (PDV):</h2>
+            <p>
+                Caso esteja em meio a uma venda e identifique que o cliente não possui cadastro no sistema, utilize o cadastro expresso:
+            </p>
+            <div class="step-container">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <p>No painel do carrinho, localize o campo <strong>👤 Cliente</strong> e clique no botão verde de adição <code>➕</code> ao lado.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <p>Preencha os dados do cliente no modal que será exibido. Os campos <strong>Nome</strong> e <strong>Telefone</strong> são obrigatórios para a segurança do contato.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <p>Clique em <strong>Salvar e Selecionar</strong>. O cliente será salvo na base central e inserido na venda corrente de forma automatizada, sem interromper o fluxo.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2>👥 Campos do Formulário de Clientes:</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Campo</th>
+                        <th style="width: 20%;">Obrigatoriedade</th>
+                        <th>Utilização / Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Nome completo</strong></td>
+                        <td>Obrigatório</td>
+                        <td>Nome para identificação na busca e cabeçalho do cupom.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Telefone</strong></td>
+                        <td>Obrigatório</td>
+                        <td>Principal meio de contato para ordens de serviço e garantia.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CPF / CNPJ</strong></td>
+                        <td>Opcional</td>
+                        <td>Essencial para identificação tributária e busca na devolução.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email</strong></td>
+                        <td>Opcional</td>
+                        <td>Para envio de comprovantes digitais e promoções.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Endereço</strong></td>
+                        <td>Opcional</td>
+                        <td>Utilizado para registros de entregas e termos de garantia.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── SEGURANÇA E PERMISSÕES ────────────────── -->
+        <div class="page-break">
+            <h1>5. Segurança e Matriz de Permissões</h1>
+            <p>
+                O controle de acesso é restrito e parametrizado por cargo ou função cadastrada no módulo de usuários. O sistema faz validações constantes em todas as transações críticas de banco de dados.
+            </p>
+
+            <h2>🔑 Tabela Geral de Acessos por Perfil:</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Módulo / Ação</th>
+                        <th style="text-align: center;">Vendedor</th>
+                        <th style="text-align: center;">Técnico</th>
+                        <th style="text-align: center;">Gerente</th>
+                        <th style="text-align: center;">Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Visualizar Produtos / Estoque</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                    <tr>
+                        <td>Faturar Vendas (PDV)</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                    <tr>
+                        <td>Registrar Devoluções de Caixa</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                    <tr>
+                        <td>Cadastrar/Editar Clientes</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                    <tr>
+                        <td>Dar Entrada em Mercadorias</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                    <tr>
+                        <td>Auditoria de Usuários e Config. Gerais</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--danger); font-weight: bold;">Não</td>
+                        <td style="text-align: center; color: var(--success); font-weight: bold;">Sim</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <div class="alert-title">⚠️ Aviso importante sobre as Credenciais</div>
+                <div>Sua senha é de uso pessoal e intransmissível. Todas as transações realizadas no PDV, movimentos de estoque e faturamentos de devoluções são salvas com o carimbo do ID do seu usuário para fins de auditoria no banco de dados. Nunca compartilhe seu acesso!</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

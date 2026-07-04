@@ -134,7 +134,8 @@
             border: 1px solid rgba(204,197,185,.2);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-y: auto;
+            scrollbar-width: thin;
         }
 
         .carrinho-panel h3 {
@@ -525,14 +526,18 @@
                     <h3>🛒 Carrinho</h3>
 
                     <!-- Busca cliente -->
-                    <div class="search-cliente">
+                    <div class="search-cliente" style="display: flex; gap: 6px; align-items: center; position: relative;">
                         <input type="text" id="searchCliente"
                                placeholder="👤 Cliente (opcional)..."
-                               autocomplete="off">
-                        <div id="clienteSuggestions" class="cliente-suggestions"></div>
-                        <input type="hidden" id="clienteId">
-                        <div id="clienteSelecionado" style="margin-top:4px;font-size:11px;color:#16a34a;"></div>
+                               autocomplete="off" style="flex: 1; min-width: 0;">
+                        <button type="button" id="btnAdicionarClienteRapido" title="Cadastrar Novo Cliente"
+                                style="background: #16a34a; color: white; border: none; border-radius: 8px; width: 34px; height: 34px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; flex-shrink: 0;">
+                            ➕
+                        </button>
+                        <div id="clienteSuggestions" class="cliente-suggestions" style="width: 100%; top: 100%; left: 0; right: 0;"></div>
                     </div>
+                    <input type="hidden" id="clienteId">
+                    <div id="clienteSelecionado" style="margin-top:4px;font-size:11px;color:#16a34a;"></div>
 
                     <!-- Itens carrinho -->
                     <div id="carrinhoItems">
@@ -663,6 +668,42 @@
         <div class="modal-footer">
             <button class="btn-primary" id="btnImprimir">🖨️ Imprimir</button>
             <button class="btn-success" id="btnSalvarPDF">📄 Salvar PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Modal: Cadastrar Novo Cliente ══════════════ -->
+<div id="modalNovoCliente" class="modal">
+    <div class="modal-content" style="max-width:500px; width:90%;">
+        <div class="modal-header">
+            <h2>👥 Cadastrar Novo Cliente</h2>
+            <span class="close-novo-cliente" style="cursor:pointer; font-size:24px;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Nome *</label>
+                <input type="text" id="novoClienteNome" placeholder="Nome completo" required style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Telefone *</label>
+                <input type="text" id="novoClienteTelefone" placeholder="(00) 00000-0000" required style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">CPF / CNPJ</label>
+                <input type="text" id="novoClienteCpfCnpj" placeholder="000.000.000-00" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Email</label>
+                <input type="email" id="novoClienteEmail" placeholder="exemplo@email.com" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Endereço</label>
+                <input type="text" id="novoClienteEndereco" placeholder="Rua, Av, etc." style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+        </div>
+        <div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end; padding:15px; border-top:1px solid var(--border);">
+            <button class="btn-warning" id="btnCancelarNovoCliente" style="border:none; padding:10px 20px; border-radius:6px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button class="btn-success" id="btnSalvarNovoCliente" style="border:none; padding:10px 20px; border-radius:6px; font-weight:600; cursor:pointer; background:#16a34a; color:#fff;">Salvar e Selecionar</button>
         </div>
     </div>
 </div>

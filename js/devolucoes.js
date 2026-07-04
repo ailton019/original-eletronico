@@ -94,23 +94,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 .eq('cancelado', false)
                 .order('id', { ascending: false });
 
-            // Se for número, busca pelo ID diretamente
-            if (termo && !isNaN(termo)) {
-                query = query.eq('id', parseInt(termo));
-            }
-
             const { data, error } = await query;
             if (error) throw error;
 
             vendas = data || [];
 
-            // Se houver busca por texto e não for número (nome do cliente ou cpf)
-            if (termo && isNaN(termo)) {
+            if (termo) {
                 const termoLower = termo.toLowerCase();
+
+                // Buscar seriais/imeis correspondentes em paralelo
+                const { data: seriaisEncontrados } = await supabaseClient
+                    .from('produtos_seriais')
+                    .select('id')
+                    .or(`numero_serie.ilike.%${termo}%,imei.ilike.%${termo}%`);
+
+                let saidaIdsPorSerial = [];
+                if (seriaisEncontrados && seriaisEncontrados.length > 0) {
+                    const serialIds = seriaisEncontrados.map(s => s.id);
+                    const { data: itensEncontrados } = await supabaseClient
+                        .from('saida_itens')
+                        .select('saida_id')
+                        .in('serial_id', serialIds);
+                    if (itensEncontrados) {
+                        saidaIdsPorSerial = itensEncontrados.map(i => i.saida_id);
+                    }
+                }
+
                 vendas = vendas.filter(v => {
+                    const matchesId = !isNaN(termo) && v.id === parseInt(termo);
                     const nome = v.clientes?.nome?.toLowerCase() || '';
-                    const doc = v.clientes?.cpf_cnpj || '';
-                    return nome.includes(termoLower) || doc.includes(termoLower);
+                    const doc = v.clientes?.cpf_cnpj?.toLowerCase() || '';
+                    const matchesClient = nome.includes(termoLower) || doc.includes(termoLower);
+                    const matchesSerial = saidaIdsPorSerial.includes(v.id);
+                    return matchesId || matchesClient || matchesSerial;
                 });
             }
 
@@ -181,6 +197,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('resumoQtdDevolvida').textContent = '0';
         document.getElementById('resumoTotalDevolucao').textContent = formatarMoeda(0);
 
+        // Habilitar botão de confirmação e remover qualquer banner de aviso
+        btnConfirmarDevolucao.disabled = false;
+        btnConfirmarDevolucao.style.opacity = '1';
+        btnConfirmarDevolucao.style.cursor = 'pointer';
+        const avisoExistente = document.getElementById('avisoDevolucaoCompleta');
+        if (avisoExistente) avisoExistente.remove();
+
         try {
             const { data: itens, error } = await supabaseClient
                 .from('saida_itens')
@@ -190,17 +213,42 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) throw error;
             itensVendaSelecionada = itens || [];
 
+            // Buscar devoluções anteriores
+            const { data: entradasAnteriores } = await supabaseClient
+                .from('entradas')
+                .select('id')
+                .ilike('observacao', `%Nota: ${vendaId}%`);
+
+            let devolvidosAgrupados = {}; // produto_id -> quantidade devolvida
+
+            if (entradasAnteriores && entradasAnteriores.length > 0) {
+                const entradaIds = entradasAnteriores.map(e => e.id);
+                const { data: itensDevolvidos } = await supabaseClient
+                    .from('entrada_itens')
+                    .select('produto_id, quantidade')
+                    .in('entrada_id', entradaIds);
+
+                if (itensDevolvidos) {
+                    itensDevolvidos.forEach(it => {
+                        devolvidosAgrupados[it.produto_id] = (devolvidosAgrupados[it.produto_id] || 0) + it.quantidade;
+                    });
+                }
+            }
+
             // Buscar seriais correspondentes
             for (const item of itensVendaSelecionada) {
+                item.qtd_ja_devolvida = devolvidosAgrupados[item.produto_id] || 0;
                 if (item.serial_id) {
                     const { data: s } = await supabaseClient
                         .from('produtos_seriais')
-                        .select('numero_serie, imei')
+                        .select('numero_serie, imei, status, observacao')
                         .eq('id', item.serial_id)
                         .single();
                     if (s) {
                         item.numero_serie = s.numero_serie;
                         item.imei = s.imei;
+                        item.serial_status = s.status;
+                        item.serial_observacao = s.observacao;
                     }
                 }
             }
@@ -220,39 +268,90 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        let todasDevolvidas = true;
+
         tbody.innerHTML = itensVendaSelecionada.map((item, index) => {
+            let jaDevolvido = false;
+            let maxDevolver = item.quantidade;
+
+            if (item.serial_id) {
+                if (item.serial_status === 'disponivel' || (item.serial_observacao && item.serial_observacao.includes(`venda #${vendaSelecionada.id}`))) {
+                    jaDevolvido = true;
+                }
+            } else {
+                if (item.qtd_ja_devolvida >= item.quantidade) {
+                    jaDevolvido = true;
+                } else {
+                    maxDevolver = item.quantidade - item.qtd_ja_devolvida;
+                }
+            }
+
+            if (!jaDevolvido) {
+                todasDevolvidas = false;
+            }
+
             const serialInfo = item.numero_serie 
                 ? `<br><small style="color:#2563eb;">🔢 Série: <code>${item.numero_serie}</code>${item.imei ? ` | IMEI: ${item.imei}` : ''}</small>`
                 : '';
 
+            const statusLabel = jaDevolvido 
+                ? ` <span style="color:#c1121f; font-weight:bold; font-size:11px; margin-left:8px; background:#fde8e8; padding:2px 6px; border-radius:4px;">(Já Devolvido)</span>`
+                : (item.qtd_ja_devolvida > 0 ? ` <span style="color:#d97706; font-weight:bold; font-size:11px; margin-left:8px; background:#fef3c7; padding:2px 6px; border-radius:4px;">(Devolvido ${item.qtd_ja_devolvida} un.)</span>` : '');
+
+            const rowStyle = jaDevolvido 
+                ? 'style="opacity: 0.5; background-color: #f3f4f6;"' 
+                : '';
+
             return `
-                <tr>
+                <tr ${rowStyle}>
                     <td style="text-align: center;">
-                        <input type="checkbox" class="checkbox-item-devolucao" data-index="${index}" onchange="atualizarResumoDevolucao()">
+                        <input type="checkbox" class="checkbox-item-devolucao" data-index="${index}" onchange="atualizarResumoDevolucao()" ${jaDevolvido ? 'disabled' : ''}>
                     </td>
                     <td>${item.produtos?.codigo || item.produto_id}</td>
                     <td>
-                        <strong>${item.produtos?.nome || 'Produto'}</strong>
+                        <strong>${item.produtos?.nome || 'Produto'}</strong>${statusLabel}
                         ${serialInfo}
                     </td>
                     <td style="text-align: center;">${item.quantidade}</td>
                     <td style="text-align: center;">
-                        <input type="number" class="input-qtd-devolver" data-index="${index}" min="1" max="${item.quantidade}" value="${item.quantidade}" 
+                        <input type="number" class="input-qtd-devolver" data-index="${index}" min="1" max="${maxDevolver}" value="${maxDevolver}" 
                                onchange="atualizarQtdDevolucao(${index}, this.value)" 
-                               ${item.serial_id ? 'disabled' : ''}>
+                               ${(item.serial_id || jaDevolvido) ? 'disabled' : ''}>
                     </td>
                     <td style="text-align: right;">${formatarMoeda(item.valor_unitario)}</td>
-                    <td style="text-align: right; font-weight: 600;" id="subtotal-${index}">${formatarMoeda(item.subtotal)}</td>
+                    <td style="text-align: right; font-weight: 600;" id="subtotal-${index}">${formatarMoeda(jaDevolvido ? 0 : (maxDevolver * item.valor_unitario))}</td>
                 </tr>
             `;
         }).join('');
+
+        if (todasDevolvidas) {
+            // Mostrar aviso de venda totalmente devolvida e desabilitar botão
+            const modalBody = document.querySelector('#modalDevolucao .modal-body');
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'avisoDevolucaoCompleta';
+            alertDiv.style.background = '#fee2e2';
+            alertDiv.style.border = '1px solid #fca5a5';
+            alertDiv.style.color = '#991b1b';
+            alertDiv.style.padding = '12px 15px';
+            alertDiv.style.borderRadius = '8px';
+            alertDiv.style.marginBottom = '15px';
+            alertDiv.style.fontWeight = 'bold';
+            alertDiv.style.fontSize = '14px';
+            alertDiv.innerHTML = '⚠️ Esta venda já foi devolvida por completo!';
+            modalBody.insertBefore(alertDiv, modalBody.firstChild);
+
+            btnConfirmarDevolucao.disabled = true;
+            btnConfirmarDevolucao.style.opacity = '0.6';
+            btnConfirmarDevolucao.style.cursor = 'not-allowed';
+        }
     }
 
     window.atualizarQtdDevolucao = (index, valor) => {
         let qtd = parseInt(valor);
         const item = itensVendaSelecionada[index];
+        const maxDevolver = item.serial_id ? 1 : (item.quantidade - item.qtd_ja_devolvida);
         if (isNaN(qtd) || qtd < 1) qtd = 1;
-        if (qtd > item.quantidade) qtd = item.quantidade;
+        if (qtd > maxDevolver) qtd = maxDevolver;
 
         // Atualizar no array local temporariamente
         const subtotal = qtd * item.valor_unitario;
