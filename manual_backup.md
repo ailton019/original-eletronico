@@ -33,7 +33,7 @@ Utilizamos o **GitHub Actions** (que roda na nuvem do GitHub de forma 100% gratu
 ### Passo 3: Enviar as alterações para o GitHub
 Envie as pastas criadas (`.github` e `scripts`) para o seu repositório no GitHub rodando os comandos abaixo no terminal (ou usando seu aplicativo de controle do Git):
 ```bash
-git add .git 
+git add .
 git commit -m "feat: adiciona rotina de backup semanal por e-mail"
 git push
 ```
