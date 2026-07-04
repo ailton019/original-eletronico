@@ -17,7 +17,7 @@ const TABELAS = [
     'saidas',
     'saida_itens',
     'usuarios',
-    'config',
+    'config_loja',
     'fornecedores',
     'categorias'
 ];
