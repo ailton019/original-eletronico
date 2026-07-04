@@ -1,0 +1,31 @@
+name: Backup Semanal Supabase em Excel
+
+on:
+  schedule:
+    # Executa todo domingo às 03:00 UTC (00:00 Horário de Brasília)
+    - cron: '0 3 * * 0'
+  workflow_dispatch: # Permite rodar o backup manualmente pelo painel do GitHub se necessário
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar biblioteca XLSX
+        run: npm install xlsx
+
+      - name: Executar script de Backup e Envio
+        run: node scripts/backup_excel.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_DESTINATARIO: ${{ secrets.EMAIL_DESTINATARIO }}
