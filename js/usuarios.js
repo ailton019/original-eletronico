@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorias: { ver: true, criar: true, editar: true, excluir: true },
             estoque: { ver: true, ajustar: true },
             entradas: { ver: true, criar: true, excluir: true },
-            saidas: { ver: true, criar: true, cancelar: true },
+            saidas: { ver: true, criar: true, cancelar: true, ver_vendas_outros: true },
             fornecedores: { ver: true, criar: true, editar: true, excluir: true },
             relatorios: { ver: true, exportar: true },
             usuarios: { ver: true, criar: true, editar: true, excluir: true }
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorias: { ver: true, criar: false, editar: false, excluir: false },
             estoque: { ver: true, ajustar: false },
             entradas: { ver: true, criar: true, excluir: false },
-            saidas: { ver: true, criar: true, cancelar: true },
+            saidas: { ver: true, criar: true, cancelar: true, ver_vendas_outros: true },
             fornecedores: { ver: true, criar: true, editar: true, excluir: false },
             relatorios: { ver: true, exportar: true },
             usuarios: { ver: false, criar: false, editar: false, excluir: false }
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorias: { ver: false },
             estoque: { ver: true, ajustar: false },
             entradas: { ver: false },
-            saidas: { ver: true, criar: true, cancelar: false },
+            saidas: { ver: true, criar: true, cancelar: false, ver_vendas_outros: false },
             fornecedores: { ver: false },
             relatorios: { ver: false },
             usuarios: { ver: false }
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorias: { ver: false },
             estoque: { ver: false },
             entradas: { ver: false },
-            saidas: { ver: false },
+            saidas: { ver: false, criar: false, cancelar: false, ver_vendas_outros: false },
             fornecedores: { ver: false },
             relatorios: { ver: false },
             usuarios: { ver: false }
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorias: { ver: false },
             estoque: { ver: false },
             entradas: { ver: false },
-            saidas: { ver: false },
+            saidas: { ver: false, criar: false, cancelar: false, ver_vendas_outros: false },
             fornecedores: { ver: false },
             relatorios: { ver: false },
             usuarios: { ver: false }
@@ -191,9 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // CRUD USUÁRIOS
     // =====================================================
     
-    function carregarPermissoes(perfil) {
+    function carregarPermissoes(perfil, customPermissoes = null) {
         const container = document.getElementById('permissoesContainer');
-        const permissoes = PERMISSOES_POR_PERFIL[perfil] || PERMISSOES_POR_PERFIL.basico;
+        const defaultPermissoes = PERMISSOES_POR_PERFIL[perfil] || PERMISSOES_POR_PERFIL.basico;
         const usuarioIdAberto = document.getElementById('usuarioId').value;
         
         const labels = {
@@ -210,9 +210,26 @@ document.addEventListener('DOMContentLoaded', () => {
             usuarios: '👤 Usuários'
         };
         
-        container.innerHTML = Object.entries(permissoes).map(([modulo, permissoesModulo]) => {
-            const permissoesHtml = Object.entries(permissoesModulo).map(([acao, valor]) => `
-                <label>
+        container.innerHTML = Object.entries(defaultPermissoes).map(([modulo, permissoesModulo]) => {
+            const permissoesHtml = Object.entries(permissoesModulo).map(([acao, defaultValor]) => {
+                const valor = (customPermissoes && customPermissoes[modulo] && customPermissoes[modulo][acao] !== undefined)
+                    ? customPermissoes[modulo][acao]
+                    : defaultValor;
+
+                const acaoLabels = {
+                    ver: 'Visualizar',
+                    criar: 'Cadastrar',
+                    editar: 'Editar',
+                    excluir: 'Excluir',
+                    cancelar: 'Cancelar',
+                    ajustar: 'Ajustar',
+                    exportar: 'Exportar',
+                    ver_vendas_outros: 'Visualizar Venda de Outros Usuários'
+                };
+                const labelText = acaoLabels[acao] || acao.charAt(0).toUpperCase() + acao.slice(1);
+                
+                return `
+                <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: normal; cursor: pointer;">
                     <input type="checkbox" 
                            data-modulo="${modulo}" 
                            data-acao="${acao}"
@@ -220,14 +237,17 @@ document.addEventListener('DOMContentLoaded', () => {
                            ${usuarioIdAberto ? '' : 'disabled'}
                            class="checkbox-permissao"
                     >
-                    ${acao.charAt(0).toUpperCase() + acao.slice(1)}
+                    ${labelText}
                 </label>
-            `).join('');
+                `;
+            }).join('');
             
             return `
                 <div class="permissoes-card">
                     <h4>${labels[modulo] || modulo}</h4>
-                    ${permissoesHtml}
+                    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
+                        ${permissoesHtml}
+                    </div>
                 </div>
             `;
         }).join('');
@@ -260,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('cargo').value = usuario.cargo || '';
             document.getElementById('ativo').value = usuario.ativo ? 'true' : 'false';
             
-            carregarPermissoes(usuario.perfil || 'basico');
+            carregarPermissoes(usuario.perfil || 'basico', usuario.permissoes);
             
             document.getElementById('modalUsuario').style.display = 'flex';
         } catch (error) {

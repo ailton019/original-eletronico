@@ -821,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const { data: venda } = await supabaseClient
                 .from('saidas')
-                .select('*, clientes(nome,telefone,email,endereco,numero,cidade,estado,cpf_cnpj)')
+                .select('*, clientes(nome,telefone,email,endereco,numero,cidade,estado,cpf_cnpj), usuarios(nome)')
                 .eq('id', vendaId)
                 .single();
 
@@ -873,6 +873,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div style="margin-bottom:12px;font-size:13px;">
                         <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
+                        <p style="margin:2px 0;"><strong>Vendedor:</strong> ${venda.usuarios?.nome || 'Sistema'}</p>
+                        <div style="border-top:1px dashed #eee;margin:6px 0;"></div>
                         <h4 style="margin:0 0 6px;font-size:14px;font-weight:bold;">DADOS DO CLIENTE</h4>
                         <p style="margin:2px 0;"><strong>Nome:</strong> ${cliente.nome || 'Cliente não informado'}</p>
                         ${cliente.cpf_cnpj ? `<p style="margin:2px 0;"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj}</p>` : ''}

@@ -64,11 +64,59 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('movimentoData').value = hoje;
     
     // Inicializar
-    carregarDashboard();
-    carregarMovimentoDiario();
-    carregarFaturamento();
-    carregarVendasProduto();
+    inicializarFiltrosUsuario().then(() => {
+        carregarDashboard();
+        carregarMovimentoDiario();
+        carregarFaturamento();
+        carregarVendasProduto();
+    });
 });
+
+// =====================================================
+// INICIALIZAR FILTROS DE USUÁRIO
+// =====================================================
+
+async function inicializarFiltrosUsuario() {
+    const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario'));
+    const verOutros = temPermissao('saidas', 'ver_vendas_outros');
+
+    const selMovimento = document.getElementById('filtroUsuarioMovimento');
+    const selFaturamento = document.getElementById('filtroUsuarioFaturamento');
+    const selVendas = document.getElementById('filtroUsuarioVendas');
+
+    if (!verOutros) {
+        if (selMovimento) selMovimento.style.display = 'none';
+        if (selFaturamento) selFaturamento.style.display = 'none';
+        if (selVendas) selVendas.style.display = 'none';
+        return;
+    }
+
+    try {
+        const { data: users, error } = await supabaseClient
+            .from('usuarios')
+            .select('id, nome')
+            .eq('ativo', true)
+            .order('nome', { ascending: true });
+
+        if (error) throw error;
+
+        const preencherSelect = (selectEl) => {
+            if (!selectEl) return;
+            selectEl.innerHTML = '<option value="todos">Todos os Usuários</option>';
+            users.forEach(u => {
+                selectEl.innerHTML += `<option value="${u.id}">${u.nome}</option>`;
+            });
+            selectEl.style.display = 'inline-block';
+        };
+
+        preencherSelect(selMovimento);
+        preencherSelect(selFaturamento);
+        preencherSelect(selVendas);
+
+    } catch (err) {
+        console.error('Erro ao carregar usuários para filtro:', err);
+    }
+}
 
 // =====================================================
 // FUNÇÕES DE ABAS
@@ -91,11 +139,37 @@ function abrirAba(tabId) {
 async function carregarDashboard() {
     try {
         const podeExportar = temPermissao('relatorios', 'exportar');
-        
+        const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario'));
+        const verOutros = temPermissao('saidas', 'ver_vendas_outros');
+
+        let qVendas = supabaseClient.from('saidas').select('total').eq('cancelado', false);
+        let qSaidasRes = supabaseClient.from('saidas').select('total, data').eq('cancelado', false);
+        let qVendasMes = supabaseClient.from('saidas').select('data, total').eq('cancelado', false).order('data', { ascending: true });
+        let qSaidaItens = supabaseClient.from('saida_itens').select('quantidade, produtos(nome)');
+
+        if (!verOutros) {
+            qVendas = qVendas.eq('usuario_id', usuarioLogado.id);
+            qSaidasRes = qSaidasRes.eq('usuario_id', usuarioLogado.id);
+            qVendasMes = qVendasMes.eq('usuario_id', usuarioLogado.id);
+
+            // Obter os IDs de saídas do usuário logado
+            const { data: saidasUsuario } = await supabaseClient
+                .from('saidas')
+                .select('id')
+                .eq('usuario_id', usuarioLogado.id)
+                .eq('cancelado', false);
+            const ids = saidasUsuario ? saidasUsuario.map(s => s.id) : [];
+            if (ids.length > 0) {
+                qSaidaItens = qSaidaItens.in('saida_id', ids);
+            } else {
+                qSaidaItens = qSaidaItens.in('saida_id', [-1]);
+            }
+        }
+
         const [vendasRes, entradasRes, saidasRes, clientesRes, produtosRes] = await Promise.all([
-            supabaseClient.from('saidas').select('total'),
+            qVendas,
             supabaseClient.from('entradas').select('total'),
-            supabaseClient.from('saidas').select('total, data'),
+            qSaidasRes,
             supabaseClient.from('clientes').select('id', { count: 'exact' }).eq('ativo', true),
             supabaseClient.from('produtos').select('id', { count: 'exact' }).eq('ativo', true)
         ]);
@@ -116,10 +190,7 @@ async function carregarDashboard() {
         document.getElementById('kpiTicketMedio').textContent = `R$ ${ticketMedio.toFixed(2)}`;
         
         // Gráfico de vendas por mês
-        const { data: vendasMes } = await supabaseClient
-            .from('saidas')
-            .select('data, total')
-            .order('data', { ascending: true });
+        const { data: vendasMes } = await qVendasMes;
         
         if (vendasMes) {
             const vendasPorMes = {};
@@ -164,13 +235,7 @@ async function carregarDashboard() {
         }
         
         // Gráfico Top 5 Produtos
-        const { data: topProdutos } = await supabaseClient
-            .from('saida_itens')
-            .select(`
-                quantidade,
-                produtos (nome)
-            `)
-            .limit(100);
+        const { data: topProdutos } = await qSaidaItens.limit(100);
         
         if (topProdutos) {
             const produtosMap = {};
@@ -230,16 +295,30 @@ async function carregarMovimentoDiario() {
         const container = document.getElementById('movimentoContainer');
         container.innerHTML = '<div style="text-align: center; padding: 20px;">Carregando...</div>';
         dadosCarregados.movimento = false;
+
+        const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario'));
+        const verOutros = temPermissao('saidas', 'ver_vendas_outros');
+
+        let qSaidas = supabaseClient.from('saidas').select(`
+            *,
+            clientes(nome)
+        `).eq('data', data);
+
+        if (!verOutros) {
+            qSaidas = qSaidas.eq('usuario_id', usuarioLogado.id);
+        } else {
+            const userFiltro = document.getElementById('filtroUsuarioMovimento')?.value;
+            if (userFiltro && userFiltro !== 'todos') {
+                qSaidas = qSaidas.eq('usuario_id', parseInt(userFiltro));
+            }
+        }
         
         const [entradasRes, saidasRes] = await Promise.all([
             supabaseClient.from('entradas').select(`
                 *,
                 clientes:fornecedor_id(nome)
             `).eq('data', data),
-            supabaseClient.from('saidas').select(`
-                *,
-                clientes(nome)
-            `).eq('data', data)
+            qSaidas
         ]);
         
         const entradas = entradasRes.data || [];
@@ -340,10 +419,25 @@ async function carregarFaturamento() {
         container.innerHTML = '<div style="text-align: center; padding: 20px;">Carregando...</div>';
         dadosCarregados.faturamento = false;
         
-        const { data: vendas } = await supabaseClient
+        const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario'));
+        const verOutros = temPermissao('saidas', 'ver_vendas_outros');
+
+        let qVendas = supabaseClient
             .from('saidas')
             .select('data, total')
+            .eq('cancelado', false)
             .order('data', { ascending: true });
+
+        if (!verOutros) {
+            qVendas = qVendas.eq('usuario_id', usuarioLogado.id);
+        } else {
+            const userFiltro = document.getElementById('filtroUsuarioFaturamento')?.value;
+            if (userFiltro && userFiltro !== 'todos') {
+                qVendas = qVendas.eq('usuario_id', parseInt(userFiltro));
+            }
+        }
+
+        const { data: vendas } = await qVendas;
         
         if (!vendas || vendas.length === 0) {
             container.innerHTML = '<div style="text-align: center; padding: 20px;">Nenhuma venda encontrada</div>';
@@ -476,17 +570,41 @@ async function carregarVendasProduto() {
         container.innerHTML = '<div style="text-align: center; padding: 20px;">Carregando...</div>';
         dadosCarregados.vendas = false;
         
+        const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario'));
+        const verOutros = temPermissao('saidas', 'ver_vendas_outros');
+
+        // Buscar IDs de saídas válidas de acordo com filtros de data e usuário
+        let qSaidas = supabaseClient.from('saidas').select('id').eq('cancelado', false);
+        
+        if (dataInicio) qSaidas = qSaidas.gte('data', dataInicio);
+        if (dataFim) qSaidas = qSaidas.lte('data', dataFim);
+        
+        if (!verOutros) {
+            qSaidas = qSaidas.eq('usuario_id', usuarioLogado.id);
+        } else {
+            const userFiltro = document.getElementById('filtroUsuarioVendas')?.value;
+            if (userFiltro && userFiltro !== 'todos') {
+                qSaidas = qSaidas.eq('usuario_id', parseInt(userFiltro));
+            }
+        }
+        
+        const { data: saidasValidas } = await qSaidas;
+        const idsValidos = saidasValidas ? saidasValidas.map(s => s.id) : [];
+
+        if (idsValidos.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px;">Nenhum produto vendido no período</div>';
+            dadosCarregados.vendas = false;
+            return;
+        }
+
         let query = supabaseClient
             .from('saida_itens')
             .select(`
                 quantidade,
                 subtotal,
-                produtos (id, nome, codigo, categoria),
-                saidas (data)
-            `);
-        
-        if (dataInicio) query = query.gte('saidas.data', dataInicio);
-        if (dataFim) query = query.lte('saidas.data', dataFim);
+                produtos (id, nome, codigo, categoria)
+            `)
+            .in('saida_id', idsValidos);
         
         const { data: itens } = await query;
         
