@@ -86,7 +86,8 @@ function filtrarMenuPorPermissao(usuario) {
         'fornecedores.html': 'fornecedores',
         'ordem-servico.html': 'ordens_servico',
         'relatorios.html': 'relatorios',
-        'usuarios.html': 'usuarios'
+        'usuarios.html': 'usuarios',
+        'configuracao.html': 'configuracao'
     };
     
     const links = document.querySelectorAll('.sidebar-nav a');

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Sistema de Estoque</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="./assets/img/telefone.png">
+    <style>
+        .config-card {
+            background: #fff;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: var(--spacing-lg);
+            margin-top: 20px;
+            border: 1px solid rgba(204, 197, 185, 0.2);
+        }
+
+        .config-card-header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .config-card-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--charcoal-brown);
+            margin: 0;
+        }
+
+        .config-card-header p {
+            margin: 5px 0 0;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .form-group-full {
+            grid-column: span 2;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-group-full {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body class="hold-transition">
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📦 Estoque Eletrônicos</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html">📊 Dashboard</a></li>
+                <li><a href="clientes.html">👥 Clientes</a></li>
+                <li><a href="produtos.html">📦 Produtos</a></li>
+                <li><a href="categorias.html">🏷️ Categorias</a></li>
+                <li><a href="estoque.html">💾 Estoque</a></li>
+                <li><a href="entradas.html">📥 Entradas</a></li>
+                <li><a href="saidas.html">📤 Nova Venda</a></li>
+                <li><a href="devolucoes.html">🔄 Devoluções</a></li>
+                <li><a href="fornecedores.html">🏭 Fornecedores</a></li>
+                <li><a href="#">🔧 OS (Sob Pedido)</a></li>
+                <li><a href="relatorios.html">📈 Relatórios</a></li>
+                <li><a href="usuarios.html">👤 Usuários</a></li>
+                <li><a href="configuracao.html" class="active">⚙️ Configurações</a></li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="menu-toggle" id="menuToggle">☰</button>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-perfil" id="userPerfil"></span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>⚙️ Configurações do Sistema</h1>
+                </div>
+
+                <div class="config-card">
+                    <div class="config-card-header">
+                        <h2>🏢 Dados da Empresa / Loja</h2>
+                        <p>Configure as informações de identificação da sua empresa para emissão no comprovante de vendas.</p>
+                    </div>
+
+                    <form id="formConfig" onsubmit="salvarConfiguracoes(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="nomeEmpresa">Nome Fantasia / Nome da Empresa *</label>
+                                <input type="text" id="nomeEmpresa" placeholder="Ex: Estoque Eletrônicos" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="razaoSocial">Razão Social</label>
+                                <input type="text" id="razaoSocial" placeholder="Ex: Eletrônicos LTDA">
+                            </div>
+                            <div class="form-group">
+                                <label for="cnpj">CNPJ</label>
+                                <input type="text" id="cnpj" placeholder="Ex: 00.000.000/0001-00">
+                            </div>
+                            <div class="form-group">
+                                <label for="telefone">Telefone / Celular *</label>
+                                <input type="text" id="telefone" placeholder="Ex: (11) 99999-9999" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="rua">Rua / Logradouro</label>
+                                <input type="text" id="rua" placeholder="Ex: Rua das Flores">
+                            </div>
+                            <div class="form-group">
+                                <label for="numero">Número</label>
+                                <input type="text" id="numero" placeholder="Ex: 123">
+                            </div>
+                            <div class="form-group">
+                                <label for="cidade">Cidade</label>
+                                <input type="text" id="cidade" placeholder="Ex: São Paulo">
+                            </div>
+                            <div class="form-group">
+                                <label for="estado">Estado (UF)</label>
+                                <select id="estado">
+                                    <option value="">Selecione</option>
+                                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                                    <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                    <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">E-mail de Contato</label>
+                                <input type="email" id="email" placeholder="Ex: contato@loja.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="cep">CEP</label>
+                                <input type="text" id="cep" placeholder="Ex: 00000-000">
+                            </div>
+                            <div class="form-group-full">
+                                <label for="mensagemGarantia">Mensagem do Comprovante / Termo de Garantia</label>
+                                <textarea id="mensagemGarantia" rows="3" placeholder="Mensagem que sairá no final do comprovante de vendas."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="btnSalvar">Salvar Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/configuracao.js"></script>
+    <script src="js/active-nav.js"></script>
+</body>
+</html>

@@ -853,10 +853,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:10px;margin-bottom:12px;">
                         <h2 style="margin:0;font-size:18px;font-weight:bold;">${configLoja.nome || 'Estoque Eletrônicos'}</h2>
+                        ${configLoja.razao_social ? `<p style="margin:2px 0;font-size:13px;">Razão Social: ${configLoja.razao_social}</p>` : ''}
                         ${configLoja.cnpj     ? `<p style="margin:2px 0;font-size:13px;">CNPJ: ${configLoja.cnpj}</p>` : ''}
-                        ${configLoja.endereco ? `<p style="margin:2px 0;font-size:13px;">${configLoja.endereco}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>` : ''}
+                        ${configLoja.endereco ? `<p style="margin:2px 0;font-size:13px;">Rua: ${configLoja.endereco}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>` : ''}
                         ${configLoja.cidade   ? `<p style="margin:2px 0;font-size:13px;">${configLoja.cidade} - ${configLoja.estado || ''} | CEP: ${configLoja.cep || ''}</p>` : ''}
-                        ${configLoja.telefone ? `<p style="margin:2px 0;font-size:13px;">Tel: ${configLoja.telefone}</p>` : ''}
+                        ${configLoja.telefone ? `<p style="margin:2px 0;font-size:13px;">Celular: ${configLoja.telefone}</p>` : ''}
                         ${configLoja.email    ? `<p style="margin:2px 0;font-size:13px;">Email: ${configLoja.email}</p>` : ''}
                     </div>
 

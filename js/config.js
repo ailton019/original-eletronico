@@ -134,7 +134,8 @@ function temPermissao(modulo, acao = 'ver') {
                 fornecedores: { ver: true, criar: true, editar: true, excluir: false },
                 ordens_servico: { ver: true, criar: true, editar: true, excluir: false },
                 relatorios: { ver: true, exportar: true },
-                usuarios: { ver: false, criar: false, editar: false, excluir: false }
+                usuarios: { ver: false, criar: false, editar: false, excluir: false },
+                configuracao: { ver: true, editar: true }
             },
             vendedor: {
                 dashboard: { ver: true },
