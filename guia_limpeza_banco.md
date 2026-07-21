@@ -35,12 +35,16 @@ DELETE FROM public.entrada_itens;
 -- 4. Excluir cabeçalhos das compras/estoque (entradas)
 DELETE FROM public.entradas;
 
--- 5. Excluir histórico de números de série / IMEI
--- Nota: Caso sua tabela se chame 'produtos_serial', ajuste o nome abaixo
+-- 5. Excluir histórico de movimentações de estoque
+DELETE FROM public.movimentos_estoque;
+
+-- 6. Excluir histórico de números de série / IMEI
 DELETE FROM public.produtos_seriais;
 
--- 6. Zerar saldo físico de estoque de todos os produtos
-UPDATE public.produtos SET estoque = 0;
+-- 7. Zerar saldo físico de estoque de todos os produtos (zera estoque e estoque_total)
+UPDATE public.produtos SET estoque_total = 0;
+-- Executar linha abaixo apenas se a sua tabela possuir a coluna 'estoque':
+-- UPDATE public.produtos SET estoque = 0;
 
 
 -- =====================================================
@@ -53,6 +57,7 @@ ALTER SEQUENCE public.saida_itens_id_seq RESTART WITH 1;
 ALTER SEQUENCE public.entradas_id_seq RESTART WITH 1;
 ALTER SEQUENCE public.entrada_itens_id_seq RESTART WITH 1;
 ALTER SEQUENCE public.produtos_seriais_id_seq RESTART WITH 1;
+ALTER SEQUENCE public.movimentos_estoque_id_seq RESTART WITH 1;
 ```
 
 ---
