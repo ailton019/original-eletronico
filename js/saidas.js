@@ -351,26 +351,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const estoque = produto.estoque_total ?? produto.estoque ?? 0;
         if (estoque <= 0) { mostrarNotificacao('Produto sem estoque disponível!', 'error'); return; }
 
-        let exigeSerial = false;
+        let exigeIMEI = false;
         try {
             const { data: categoria } = await supabaseClient
                 .from('categorias')
-                .select('exige_serial')
+                .select('exige_imei')
                 .eq('nome', produto.categoria)
                 .maybeSingle();
-            exigeSerial = categoria?.exige_serial === true || produto.categoria === 'Celular';
+            exigeIMEI = categoria?.exige_imei === true || produto.categoria === 'Celular';
         } catch {
-            exigeSerial = produto.categoria === 'Celular';
+            exigeIMEI = produto.categoria === 'Celular';
         }
 
-        if (exigeSerial) {
+        if (exigeIMEI) {
             const { data: seriais, error } = await supabaseClient
                 .from('produtos_seriais')
                 .select('*')
                 .eq('produto_id', produtoId)
                 .eq('status', 'disponivel');
 
-            if (error) { mostrarNotificacao('Erro ao verificar seriais!', 'error'); return; }
+            if (error) { mostrarNotificacao('Erro ao verificar IMEIs!', 'error'); return; }
 
             produtoSerialPendente = produto;
             seriaisDisponiveis    = seriais || [];
@@ -380,20 +380,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const container = document.getElementById('seriaisDisponiveis');
             if (seriaisDisponiveis.length === 0) {
-                container.innerHTML = '<p style="color:#dc2626;font-size:13px;">⚠️ Nenhum número de série disponível!</p>';
+                container.innerHTML = '<p style="color:#dc2626;font-size:13px;">⚠️ Nenhum IMEI disponível!</p>';
             } else {
                 container.innerHTML = `
-                    <strong>📱 Seriais disponíveis (${seriaisDisponiveis.length} un.):</strong>
+                    <strong>📱 IMEIs disponíveis (${seriaisDisponiveis.length} un.):</strong>
                     <ul style="margin-top:10px;max-height:150px;overflow-y:auto;padding:0;list-style:none;">
                         ${seriaisDisponiveis.map(s => `
-                            <li onclick="selecionarSerial('${s.numero_serie}')"
+                            <li onclick="selecionarSerial('${s.imei || ''}')"
                                 style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;
                                        display:flex;justify-content:space-between;align-items:center;border-radius:4px;"
                                 onmouseover="this.style.background='#f0f9ff'"
                                 onmouseout="this.style.background=''">
                                 <div>
-                                    <code>${s.numero_serie || 'N/A'}</code>
-                                    ${s.imei ? `<br><small>IMEI: ${s.imei}</small>` : ''}
+                                    <code>IMEI: ${s.imei || 'N/A'}</code>
+                                    ${s.numero_serie ? `<br><small>Serial: ${s.numero_serie}</small>` : ''}
                                 </div>
                                 <button style="background:#2563eb;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;">
                                     Selecionar
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </li>`).join('')}
                     </ul>
                     <small style="color:var(--gray);margin-top:8px;display:block;">
-                        📝 Digite ou clique no serial acima para selecionar
+                        📝 Digite ou clique no IMEI acima para selecionar
                     </small>`;
             }
 
@@ -421,16 +421,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const numeroSerie = document.getElementById('numeroSerie').value.trim();
 
         if (!numeroSerie && seriaisDisponiveis.length > 0) {
-            mostrarNotificacao('Informe o número de série!', 'error');
+            mostrarNotificacao('Informe o IMEI!', 'error');
             return;
         }
 
         const serial = seriaisDisponiveis.find(s =>
-            s.numero_serie === numeroSerie || s.imei === numeroSerie
+            s.imei === numeroSerie
         );
 
         if (seriaisDisponiveis.length > 0 && !serial) {
-            mostrarNotificacao('Número de série inválido!', 'error');
+            mostrarNotificacao('IMEI inválido!', 'error');
             return;
         }
 
@@ -1156,9 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('modalSerial').style.display = 'none';
             produtoSerialPendente = null;
         }
-        if (event.target === modalNovoCliente) {
-            fecharModalCliente();
-        }
+        // Removido fechamento de modalNovoCliente ao clicar fora
     };
 
     // =====================================================
@@ -1187,4 +1185,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.cancelarVenda       = cancelarVenda;
 
     carregarDados();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-saidas')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, () => {
+                carregarDados();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+                carregarDados();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'saidas' }, () => {
+                carregarDados();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canais Realtime de saídas:', e);
+    }
 });

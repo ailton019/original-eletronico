@@ -336,14 +336,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('searchInput')?.addEventListener('input', renderizarTabela);
     
+    // Removido fechamento ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        if (event.target === document.getElementById('modal')) {
-            document.getElementById('modal').style.display = 'none';
-            document.getElementById('btnSalvar').style.display = 'block';
-            document.getElementById('btnCancelar').textContent = 'Cancelar';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
     
     // Inicializar
     carregarClientes();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-clientes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+                carregarClientes();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canal Realtime de clientes:', e);
+    }
 });

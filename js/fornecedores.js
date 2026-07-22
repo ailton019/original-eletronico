@@ -263,14 +263,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modalFornecedor').style.display = 'none';
     });
     
+    // Removido fechamento ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        const modal = document.getElementById('modalFornecedor');
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
     
     carregarFornecedores();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-fornecedores')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+                carregarFornecedores();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canal Realtime de fornecedores:', e);
+    }
     
     window.buscarFornecedores = async () => {
         try {

@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = 1;
     let itemsPerPage = 10;
     let exigeIMEIActual = false;
+    let exigeSerialActual = false;
     
     // =====================================================
     // CARREGAR DADOS
@@ -117,14 +118,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectFiltro) selectFiltro.innerHTML = options;
             if (selectProduto) {
                 selectProduto.innerHTML = '<option value="">Selecione uma categoria</option>' +
-                    (data || []).map(c => `<option value="${c.nome}" data-exige-imei="${c.exige_imei}">${c.nome}</option>`).join('');
+                    (data || []).map(c => `<option value="${c.nome}" data-exige-imei="${c.exige_imei}" data-exige-serial="${c.exige_serial}">${c.nome}</option>`).join('');
                 
                 selectProduto.addEventListener('change', (e) => {
                     const selectedOption = e.target.options[e.target.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) {
+                        exigeIMEIActual = false;
+                        exigeSerialActual = false;
+                        document.getElementById('seriaisContainer').style.display = 'none';
+                        const avisoIMEI = document.getElementById('avisoIMEI');
+                        if (avisoIMEI) avisoIMEI.remove();
+                        return;
+                    }
                     const exigeIMEI = selectedOption.getAttribute('data-exige-imei') === 'true';
+                    const exigeSerial = selectedOption.getAttribute('data-exige-serial') === 'true';
                     exigeIMEIActual = exigeIMEI;
+                    exigeSerialActual = exigeSerial;
+                    
                     const quantidade = parseInt(document.getElementById('quantidade_estoque').value) || 1;
-                    gerarCamposSerial(quantidade, exigeIMEIActual);
+                    
+                    if (exigeSerialActual || exigeIMEIActual) {
+                        document.getElementById('seriaisContainer').style.display = 'block';
+                        gerarCamposSerial(quantidade, exigeSerialActual, exigeIMEIActual);
+                    } else {
+                        document.getElementById('seriaisContainer').style.display = 'none';
+                        document.getElementById('seriaisList').innerHTML = '';
+                    }
                     
                     const avisoIMEI = document.getElementById('avisoIMEI');
                     if (exigeIMEIActual) {
@@ -160,35 +179,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // FUNÇÕES DE SERIAL
     // =====================================================
     
-    function gerarCamposSerial(quantidade, exigeIMEI = false) {
+    function gerarCamposSerial(quantidade, exigeSerial = false, exigeIMEI = false) {
         const container = document.getElementById('seriaisList');
         if (!container) return;
         
+        exigeSerialActual = exigeSerial;
         exigeIMEIActual = exigeIMEI;
         
         let html = '';
         for (let i = 0; i < quantidade; i++) {
+            const serialPlaceholder = exigeSerial ? "Número de Série * (obrigatório)" : "Número de Série (opcional)";
+            const serialRequired = exigeSerial ? "required" : "";
+            const serialStyle = exigeSerial ? "border-left: 4px solid #dc3545;" : "";
+            
+            const imeiPlaceholder = exigeIMEI ? "IMEI * (obrigatório para esta categoria)" : "IMEI (opcional)";
+            const imeiRequired = exigeIMEI ? "required" : "";
+            const imeiStyle = exigeIMEI ? "border-left: 4px solid #dc3545;" : "";
+            
             html += `
                 <div class="serial-item" data-serial-index="${i}">
                     <input type="text" 
-                           placeholder="Número de Série * (obrigatório)" 
+                           placeholder="${serialPlaceholder}" 
                            class="serial-numero" 
                            data-index="${i}" 
-                           required
-                           style="border-left: 4px solid #dc3545;">
-                    ${exigeIMEI ? `
+                           ${serialRequired}
+                           style="${serialStyle}">
                     <input type="text" 
-                           placeholder="IMEI * (obrigatório para esta categoria)" 
+                           placeholder="${imeiPlaceholder}" 
                            class="serial-imei" 
                            data-index="${i}"
-                           required
-                           style="border-left: 4px solid #dc3545;">
-                    ` : `
-                    <input type="text" 
-                           placeholder="IMEI (opcional)" 
-                           class="serial-imei" 
-                           data-index="${i}">
-                    `}
+                           ${imeiRequired}
+                           style="${imeiStyle}">
                     <button type="button" 
                             class="btn-remove-serial" 
                             onclick="removerSerial(${i})" 
@@ -204,25 +225,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.style.border = '1px solid #28a745';
                     this.style.borderLeft = '4px solid #28a745';
                 } else {
-                    this.style.border = '1px solid #dc3545';
-                    this.style.borderLeft = '4px solid #dc3545';
+                    if (exigeSerialActual) {
+                        this.style.border = '1px solid #dc3545';
+                        this.style.borderLeft = '4px solid #dc3545';
+                    } else {
+                        this.style.border = '';
+                        this.style.borderLeft = '';
+                    }
                 }
             });
         });
         
-        if (exigeIMEI) {
-            document.querySelectorAll('.serial-imei').forEach(input => {
-                input.addEventListener('input', function() {
-                    if (this.value.trim() !== '') {
-                        this.style.border = '1px solid #28a745';
-                        this.style.borderLeft = '4px solid #28a745';
-                    } else {
+        document.querySelectorAll('.serial-imei').forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    this.style.border = '1px solid #28a745';
+                    this.style.borderLeft = '4px solid #28a745';
+                } else {
+                    if (exigeIMEIActual) {
                         this.style.border = '1px solid #dc3545';
                         this.style.borderLeft = '4px solid #dc3545';
+                    } else {
+                        this.style.border = '';
+                        this.style.borderLeft = '';
                     }
-                });
+                }
             });
-        }
+        });
     }
     
     window.removerSerial = (index) => {
@@ -232,24 +261,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         document.getElementById('quantidade_estoque').value = quantidade - 1;
-        gerarCamposSerial(quantidade - 1, exigeIMEIActual);
+        gerarCamposSerial(quantidade - 1, exigeSerialActual, exigeIMEIActual);
     };
     
     function validarSeriais() {
-        const camposNumero = document.querySelectorAll('.serial-numero');
         let todosPreenchidos = true;
-        let vazios = [];
+        let vazios = 0;
         
-        for (let i = 0; i < camposNumero.length; i++) {
-            const valor = camposNumero[i].value.trim();
-            if (valor === '') {
-                todosPreenchidos = false;
-                vazios.push(i + 1);
-                camposNumero[i].style.border = '1px solid #dc3545';
-                camposNumero[i].style.borderLeft = '4px solid #dc3545';
-            } else {
-                camposNumero[i].style.border = '1px solid #28a745';
-                camposNumero[i].style.borderLeft = '4px solid #28a745';
+        if (exigeSerialActual) {
+            const camposNumero = document.querySelectorAll('.serial-numero');
+            for (let i = 0; i < camposNumero.length; i++) {
+                const valor = camposNumero[i].value.trim();
+                if (valor === '') {
+                    todosPreenchidos = false;
+                    vazios++;
+                    camposNumero[i].style.border = '1px solid #dc3545';
+                    camposNumero[i].style.borderLeft = '4px solid #dc3545';
+                } else {
+                    camposNumero[i].style.border = '1px solid #28a745';
+                    camposNumero[i].style.borderLeft = '4px solid #28a745';
+                }
             }
         }
         
@@ -259,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valor = camposIMEI[i].value.trim();
                 if (valor === '') {
                     todosPreenchidos = false;
+                    vazios++;
                     camposIMEI[i].style.border = '1px solid #dc3545';
                     camposIMEI[i].style.borderLeft = '4px solid #dc3545';
                 } else {
@@ -269,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (!todosPreenchidos) {
-            mostrarNotificacao(`Preencha todos os campos obrigatórios! Faltam ${vazios.length} campo(s).`, 'error');
+            mostrarNotificacao(`Preencha todos os campos obrigatórios! Faltam ${vazios} campo(s).`, 'error');
             return false;
         }
         return true;
@@ -280,16 +312,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const camposNumero = document.querySelectorAll('.serial-numero');
         
         for (let campo of camposNumero) {
+            const index = campo.getAttribute('data-index');
             const numeroSerie = campo.value.trim();
-            if (numeroSerie) {
-                const index = campo.getAttribute('data-index');
-                const imei = document.querySelector(`.serial-imei[data-index="${index}"]`)?.value || '';
-                seriaisList.push({
-                    numero_serie: numeroSerie,
-                    imei: imei,
-                    status: 'disponivel'
-                });
-            }
+            const imei = document.querySelector(`.serial-imei[data-index="${index}"]`)?.value || '';
+            seriaisList.push({
+                numero_serie: numeroSerie,
+                imei: imei,
+                status: 'disponivel'
+            });
         }
         return seriaisList;
     }
@@ -549,47 +579,59 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                const seriaisValidos = validarSeriais();
-                if (!seriaisValidos) return;
-                
-                const seriaisList = coletarSeriais();
-                
-                if (seriaisList.length !== quantidadeEstoque) {
-                    mostrarNotificacao(`Preencha todos os ${quantidadeEstoque} números de série!`, 'error');
-                    return;
-                }
-                
-                const { data, error } = await supabaseClient
-                    .from('produtos')
-                    .insert([dadosProduto])
-                    .select();
-                
-                if (error) throw error;
-                
-                const produtoId = data[0].id;
-                
-                for (const serial of seriaisList) {
-                    const { error: serialError } = await supabaseClient
-                        .from('produtos_seriais')
-                        .insert([{
-                            produto_id: produtoId,
-                            numero_serie: serial.numero_serie,
-                            imei: serial.imei,
-                            status: 'disponivel',
-                            data_entrada: new Date().toISOString(),
-                            valor_compra: dadosProduto.valor_compra,
-                            valor_venda: dadosProduto.valor_venda
-                        }]);
+                if (exigeSerialActual || exigeIMEIActual) {
+                    const seriaisValidos = validarSeriais();
+                    if (!seriaisValidos) return;
                     
-                    if (serialError) throw serialError;
+                    const seriaisList = coletarSeriais();
+                    
+                    if (seriaisList.length !== quantidadeEstoque) {
+                        mostrarNotificacao(`Preencha todos os ${quantidadeEstoque} números de série!`, 'error');
+                        return;
+                    }
+                    
+                    const { data, error } = await supabaseClient
+                        .from('produtos')
+                        .insert([dadosProduto])
+                        .select();
+                    
+                    if (error) throw error;
+                    
+                    const produtoId = data[0].id;
+                    
+                    for (const serial of seriaisList) {
+                        const { error: serialError } = await supabaseClient
+                            .from('produtos_seriais')
+                            .insert([{
+                                produto_id: produtoId,
+                                numero_serie: serial.numero_serie,
+                                imei: serial.imei,
+                                status: 'disponivel',
+                                data_entrada: new Date().toISOString(),
+                                valor_compra: dadosProduto.valor_compra,
+                                valor_venda: dadosProduto.valor_venda
+                            }]);
+                        
+                        if (serialError) throw serialError;
+                    }
+                    
+                    await supabaseClient
+                        .from('produtos')
+                        .update({ estoque_total: seriaisList.length })
+                        .eq('id', produtoId);
+                    
+                    mostrarNotificacao(`Produto cadastrado com ${seriaisList.length} número(s) de série!`, 'success');
+                } else {
+                    dadosProduto.estoque_total = quantidadeEstoque;
+                    
+                    const { error } = await supabaseClient
+                        .from('produtos')
+                        .insert([dadosProduto]);
+                    
+                    if (error) throw error;
+                    
+                    mostrarNotificacao('Produto cadastrado com sucesso!', 'success');
                 }
-                
-                await supabaseClient
-                    .from('produtos')
-                    .update({ estoque_total: seriaisList.length })
-                    .eq('id', produtoId);
-                
-                mostrarNotificacao(`Produto cadastrado com ${seriaisList.length} número(s) de série!`, 'success');
             }
             
             document.getElementById('modalProduto').style.display = 'none';
@@ -661,6 +703,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // EVENTOS
     // =====================================================
     
+    // Validar input de código para aceitar apenas números
+    const codigoInput = document.getElementById('codigo');
+    if (codigoInput) {
+        codigoInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+        });
+    }
+
+    // Atualizar campos de serial dinamicamente ao digitar a quantidade
+    const quantidadeEstoqueInput = document.getElementById('quantidade_estoque');
+    if (quantidadeEstoqueInput) {
+        quantidadeEstoqueInput.addEventListener('input', function() {
+            const qty = parseInt(this.value) || 1;
+            if (exigeSerialActual || exigeIMEIActual) {
+                gerarCamposSerial(qty, exigeSerialActual, exigeIMEIActual);
+            }
+        });
+    }
+
     document.getElementById('btnNovoProduto')?.addEventListener('click', () => {
         if (!verificarPermissao('produtos', 'criar')) {
             mostrarNotificacao('Você não tem permissão para criar produtos!', 'error');
@@ -672,8 +733,22 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('produtoId').value = '';
         document.getElementById('quantidade_estoque').value = 1;
         document.getElementById('quantidade_estoque').disabled = false;
+        
+        // Auto-gerar código numérico sequencial
+        let maxCodigo = 0;
+        produtos.forEach(p => {
+            const numericPart = p.codigo ? p.codigo.replace(/\D/g, '') : '';
+            const codInt = parseInt(numericPart, 10);
+            if (!isNaN(codInt) && codInt > maxCodigo) {
+                maxCodigo = codInt;
+            }
+        });
+        const novoCodigo = maxCodigo + 1;
+        document.getElementById('codigo').value = novoCodigo;
+
         exigeIMEIActual = false;
-        gerarCamposSerial(1, false);
+        exigeSerialActual = false;
+        gerarCamposSerial(1, false, false);
         
         const avisoIMEI = document.getElementById('avisoIMEI');
         if (avisoIMEI) avisoIMEI.remove();
@@ -733,17 +808,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Removido fechamento ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        if (event.target === document.getElementById('modalProduto')) {
-            document.getElementById('modalProduto').style.display = 'none';
-        }
-        if (event.target === document.getElementById('modalSerial')) {
-            document.getElementById('modalSerial').style.display = 'none';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
     
     // Inicializar
     carregarCategorias();
     carregarProdutos();
     carregarSeriais();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-produtos')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, () => {
+                carregarProdutos();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
+                carregarCategorias();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos_seriais' }, () => {
+                carregarSeriais();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canais Realtime de produtos:', e);
+    }
 });
