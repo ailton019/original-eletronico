@@ -447,10 +447,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modalUsuario').style.display = 'none';
     });
     
+    // Removido fechamento ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        if (event.target === document.getElementById('modalUsuario')) {
-            document.getElementById('modalUsuario').style.display = 'none';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
     
     document.getElementById('searchUsuario')?.addEventListener('input', renderizarTabela);
@@ -463,6 +462,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     carregarUsuarios();
     initTabs();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-usuarios')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, () => {
+                carregarUsuarios();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canal Realtime de usuários:', e);
+    }
     
     window.editarUsuario = editarUsuario;
     window.toggleStatus = toggleStatus;

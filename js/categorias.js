@@ -258,11 +258,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filtroStatus')?.addEventListener('change', renderizarTabela);
     document.getElementById('filtroIMEI')?.addEventListener('change', renderizarTabela);
     
+    // Removido fechamento ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        if (event.target === document.getElementById('modalCategoria')) {
-            document.getElementById('modalCategoria').style.display = 'none';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
     
     carregarCategorias();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-categorias')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => {
+                carregarCategorias();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canal Realtime de categorias:', e);
+    }
 });

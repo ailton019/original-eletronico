@@ -552,14 +552,25 @@ document.addEventListener('DOMContentLoaded', () => {
         modalDevolucao.style.display = 'none';
     });
 
+    // Removido fechamento de modalDevolucao ao clicar fora por solicitação do usuário
     window.onclick = (event) => {
-        if (event.target === modalDevolucao) {
-            modalDevolucao.style.display = 'none';
-        }
+        // Modais de cadastro não devem fechar ao clicar fora
     };
 
     btnConfirmarDevolucao.addEventListener('click', confirmarDevolucao);
 
     // Carregar dados iniciais
     carregarVendas();
+
+    // Sincronização em tempo real (Supabase Realtime)
+    try {
+        supabaseClient
+            .channel('schema-db-changes-devolucoes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'saidas' }, () => {
+                carregarVendas();
+            })
+            .subscribe();
+    } catch (e) {
+        console.error('Erro ao assinar canal Realtime de devoluções:', e);
+    }
 });
