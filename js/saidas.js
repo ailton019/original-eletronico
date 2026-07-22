@@ -849,94 +849,116 @@ document.addEventListener('DOMContentLoaded', () => {
             const horaVenda = new Date().toLocaleTimeString('pt-BR');
 
             document.getElementById('comprovanteBody').innerHTML = `
-                <div id="comprovante" style="padding:15px 5px;font-family:'Courier New',monospace;max-width:400px;margin:0 auto;font-size:14px;line-height:1.3;color:#000;box-sizing:border-box;">
+                <div id="comprovante" style="padding:15px 5px;font-family:'Courier New',monospace;max-width:400px;margin:0 auto;font-size:16px;line-height:1.3;color:#000;box-sizing:border-box;">
 
-                    <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:10px;margin-bottom:12px;">
-                        <h2 style="margin:0;font-size:18px;font-weight:bold;">${configLoja.nome || 'Estoque Eletrônicos'}</h2>
-                        ${configLoja.razao_social ? `<p style="margin:2px 0;font-size:13px;">Razão Social: ${configLoja.razao_social}</p>` : ''}
-                        ${configLoja.cnpj     ? `<p style="margin:2px 0;font-size:13px;">CNPJ: ${configLoja.cnpj}</p>` : ''}
-                        ${configLoja.endereco ? `<p style="margin:2px 0;font-size:13px;">Rua: ${configLoja.endereco}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>` : ''}
-                        ${configLoja.cidade   ? `<p style="margin:2px 0;font-size:13px;">${configLoja.cidade} - ${configLoja.estado || ''} | CEP: ${configLoja.cep || ''}</p>` : ''}
-                        ${configLoja.telefone ? `<p style="margin:2px 0;font-size:13px;">Celular: ${configLoja.telefone}</p>` : ''}
-                        ${configLoja.email    ? `<p style="margin:2px 0;font-size:13px;">Email: ${configLoja.email}</p>` : ''}
+                    <!-- CABEÇALHO -->
+                    <div style="text-align:center;line-height:1.4;">
+                        <h2 style="margin:0;font-size:19px;font-weight:bold;text-transform:uppercase;">${configLoja.nome || 'E-commerce Mercado Livre'}</h2>
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
+                        <p style="margin:2px 0;font-size:15px;">${configLoja.endereco || 'Rua santa Efigenia 276 LJ 4B'}${configLoja.numero ? ', ' + configLoja.numero : ''}</p>
+                        <p style="margin:2px 0;font-size:15px;">Telefone: ${configLoja.telefone || '(11) 96985-4358'}</p>
+                        <p style="margin:2px 0;font-size:15px;">CNPJ: ${configLoja.cnpj || '47.391.014/0001-47'}</p>
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
                     </div>
 
-                    <div style="text-align:center;margin-bottom:12px;">
-                        <h3 style="margin:0;font-size:15px;font-weight:bold;">${cancelada ? '⚠️ CANCELADO — ' : ''}COMPROVANTE DE VENDA</h3>
-                        <p style="margin:4px 0;font-size:13px;"><strong>Nº ${venda.id}</strong> | ${formatarData(venda.data)} às ${horaVenda}</p>
+                    <!-- DADOS DO PEDIDO -->
+                    <div style="font-size:15px;line-height:1.4;margin-bottom:8px;">
+                        <p style="margin:2px 0;">Data venda: ${formatarData(venda.data)} - ${venda.hora || horaVenda}</p>
+                        <h3 style="margin:2px 0;font-size:17px;font-weight:bold;">PEDIDO NÚMERO: ${venda.id}</h3>
+                        <p style="margin:2px 0;">Vendedor: ${venda.usuarios?.nome || 'E-commerce Original Eletronico'}</p>
                         ${cancelada ? `
-                            <p style="color:#dc2626;margin-top:8px;font-size:13px;">
-                                <strong>VENDA CANCELADA</strong><br>
-                                Motivo: ${venda.motivo_cancelamento || 'Não informado'}<br>
-                                Cancelado em: ${venda.cancelado_em ? new Date(venda.cancelado_em).toLocaleString('pt-BR') : '-'}
+                            <p style="color:#dc2626;margin-top:6px;font-size:15px;font-weight:bold;">
+                                ⚠️ VENDA CANCELADA<br>
+                                Motivo: ${venda.motivo_cancelamento || 'Não informado'}
                             </p>` : ''}
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
                     </div>
 
-                    <div style="margin-bottom:12px;font-size:13px;">
-                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
-                        <p style="margin:2px 0;"><strong>Vendedor:</strong> ${venda.usuarios?.nome || 'Sistema'}</p>
-                        <div style="border-top:1px dashed #eee;margin:6px 0;"></div>
-                        <h4 style="margin:0 0 6px;font-size:14px;font-weight:bold;">DADOS DO CLIENTE</h4>
-                        <p style="margin:2px 0;"><strong>Nome:</strong> ${cliente.nome || 'Cliente não informado'}</p>
-                        ${cliente.cpf_cnpj ? `<p style="margin:2px 0;"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj}</p>` : ''}
-                        ${cliente.telefone ? `<p style="margin:2px 0;"><strong>Tel:</strong> ${cliente.telefone}</p>` : ''}
-                        ${cliente.email    ? `<p style="margin:2px 0;"><strong>Email:</strong> ${cliente.email}</p>` : ''}
-                        ${cliente.endereco ? `<p style="margin:2px 0;"><strong>End.:</strong> ${cliente.endereco}, ${cliente.numero || ''} — ${cliente.cidade || ''}/${cliente.estado || ''}</p>` : ''}
+                    <!-- DADOS DO CLIENTE -->
+                    <div style="font-size:15px;line-height:1.4;margin-bottom:8px;">
+                        <p style="margin:2px 0;">Cliente: ${cliente.nome || ''}</p>
+                        <p style="margin:2px 0;">CPF: ${cliente.cpf_cnpj || ''}</p>
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
                     </div>
 
+                    <!-- ITENS -->
                     <div style="margin-bottom:12px;">
-                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
-                        <h4 style="margin:0 0 6px;font-size:14px;font-weight:bold;">ITENS VENDIDOS</h4>
-                        <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.2;">
-                            <thead>
-                                <tr style="border-bottom:1px dashed #000;">
-                                    <th style="padding:4px 0;text-align:left;">Cod/Produto/Série</th>
-                                    <th style="padding:4px 0;text-align:center;width:40px;">Qtd</th>
-                                    <th style="padding:4px 0;text-align:right;width:90px;">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${(itens || []).map(item => `
-                                    <tr style="border-bottom:1px dashed #eee;">
-                                        <td style="padding:5px 0;vertical-align:top;">
-                                            <span style="font-size:11px;color:#555;">${item.produtos?.codigo || item.produto_id}</span><br>
-                                            <strong>${item.produtos?.nome || 'Produto'}</strong>
-                                            ${item.numero_serie ? `<br><small style="color:#2563eb;">🔢 Série: <strong>${item.numero_serie}</strong></small>` : ''}
-                                            ${item.imei ? `<br><small style="color:#6b7280;">📱 IMEI: ${item.imei}</small>` : ''}
-                                        </td>
-                                        <td style="padding:5px 0;vertical-align:top;text-align:center;">${item.quantidade}</td>
-                                        <td style="padding:5px 0;vertical-align:top;text-align:right;">${formatarMoeda(item.subtotal)}</td>
-                                    </tr>`).join('')}
-                            </tbody>
-                            <tfoot>
-                                <tr style="border-top:1px dashed #000;">
-                                    <td colspan="2" style="padding:6px 0 2px;text-align:right;">Subtotal:</td>
-                                    <td style="padding:6px 0 2px;text-align:right;">${formatarMoeda(subtotal)}</td>
-                                </tr>
-                                ${desconto > 0 ? `
-                                <tr>
-                                    <td colspan="2" style="padding:2px 0;text-align:right;">Desconto:</td>
-                                    <td style="padding:2px 0;text-align:right;">-${formatarMoeda(desconto)}</td>
-                                </tr>` : ''}
-                                <tr style="font-size:15px;font-weight:bold;">
-                                    <td colspan="2" style="padding:4px 0;text-align:right;border-top:1px dashed #000;">TOTAL:</td>
-                                    <td style="padding:4px 0;text-align:right;border-top:1px dashed #000;">${formatarMoeda(total)}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <div style="font-weight:bold;margin-bottom:6px;font-size:15px;">ITENS:</div>
+                        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:15px;margin-bottom:2px;">
+                            <span style="width:30%;text-align:left;">Cod.</span>
+                            <span style="width:40%;text-align:center;">Qtd.</span>
+                            <span style="width:30%;text-align:right;">Total</span>
+                        </div>
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
+                        
+                        ${(itens || []).map(item => `
+                            <div style="margin-bottom:12px;font-size:15px;line-height:1.3;">
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="width:30%;text-align:left;">${item.produtos?.codigo || item.produto_id}</span>
+                                    <span style="width:40%;text-align:center;">${item.quantidade}</span>
+                                    <span style="width:30%;text-align:right;">R$ ${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                </div>
+                                <div style="text-transform:uppercase;font-weight:bold;margin-top:2px;">
+                                    ${item.produtos?.nome || 'Produto'}
+                                </div>
+                                ${(item.numero_serie || item.imei) ? `
+                                <div style="font-size:13px;margin-top:2px;">
+                                    IMEI / n° Série: ${item.numero_serie || item.imei}
+                                </div>` : ''}
+                            </div>
+                        `).join('')}
+                        <div style="margin:4px 0;font-size:15px;font-weight:bold;letter-spacing:-1px;">====================================</div>
                     </div>
 
-                    <div style="margin-bottom:12px;font-size:13px;">
-                        <div style="border-top:1px dashed #000;margin-bottom:8px;"></div>
-                        <p style="margin:2px 0;"><strong>Forma de Pagamento:</strong> ${venda.forma_pagamento || '-'}</p>
-                        ${venda.observacao ? `<p style="margin:2px 0;"><strong>Observação:</strong> ${venda.observacao}</p>` : ''}
+                    <!-- PAGAMENTO / VALORES -->
+                    <div style="font-size:15px;line-height:1.4;margin-bottom:12px;">
+                        <div style="text-align:center;font-weight:bold;margin-bottom:6px;">PAGAMENTO</div>
+                        
+                        <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                            <span>Subtotal</span>
+                            <span>${formatarMoeda(subtotal)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                            <span>(-)Desconto</span>
+                            <span>R$ ${parseFloat(desconto).toFixed(2).replace('.', ',')}</span>
+                        </div>
+                        
+                        <div style="border-top:1px solid #000;margin:6px 0;"></div>
+                        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:17px;margin-bottom:6px;">
+                            <span>TOTAL:</span>
+                            <span>${formatarMoeda(total)}</span>
+                        </div>
+                        <div style="border-top:1px solid #000;margin:6px 0;"></div>
+                        
+                        <p style="margin:2px 0;">Forma de pagamento: ${venda.forma_pagamento || '-'}</p>
+                        <p style="margin:2px 0;">Valor Pago: ${formatarMoeda(total)}</p>
                     </div>
 
-                    <div style="text-align:center;border-top:1px dashed #000;padding-top:10px;font-size:11px;line-height:1.2;">
-                        <p style="margin:4px 0;">${configLoja.mensagem_garantia || 'Produto com garantia de 90 dias contra defeitos de fabricação.'}</p>
-                        <p style="margin:4px 0;">Este documento é um comprovante de venda válido.</p>
-                        <p style="margin:4px 0;font-weight:bold;">Obrigado pela preferência! 😊</p>
+                    <!-- TERMOS DE GARANTIA E TROCAS -->
+                    <div style="border-top:1px solid #000;padding-top:10px;font-size:13px;line-height:1.4;text-align:left;">
+                        <p style="margin:4px 0;font-weight:bold;text-align:center;">GARANTIA DOS PRODUTOS</p>
+                        <br>
+                        <p style="margin:2px 0;font-weight:bold;">1 ANO PARA:</p>
+                        <p style="margin:1px 0;">SANSUNG</p>
+                        <p style="margin:1px 0;">APPLE</p>
+                        <p style="margin:1px 0;">ACER</p>
+                        <p style="margin:1px 0;">LENOVO</p>
+                        <p style="margin:1px 0;">DELL</p>
+                        <p style="margin:1px 0;">HP</p>
+                        <br>
+                        <p style="margin:2px 0;font-weight:bold;">3 MESES PARA:</p>
+                        <p style="margin:1px 0;">XIONI</p>
+                        <br>
+                        <p style="margin:2px 0;font-weight:bold;">1 ANO PARA:</p>
+                        <p style="margin:1px 0;">MOTOROLA</p>
+                        <br>
+                        <p style="margin:4px 0;font-weight:bold;text-align:center;">POLITICA DE TROCAS</p>
+                        <br>
+                        <p style="margin:2px 0;text-align:justify;">O prazo de troca dos produtos é de 7 dias úteis para qualquer defeito funcional, após esse prazo, procure um posto autorizado do fabricante, norma que se aplica aos produtos APPLE, SANSUNG, DELL, ACER, LENOVO, HP, LG, MOTOROLA</p>
+                        <br>
+                        <p style="margin:2px 0;font-weight:bold;text-align:center;">OBS: NÃO EFETUAMOS TROCA POR INSATISFAÇÃO</p>
                     </div>
+
                 </div>`;;
 
             document.getElementById('modalComprovante').style.display = 'flex';
@@ -966,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     width: 100%;
                     max-width: 72mm;
                     margin: 0 auto;
-                    font-size: 14px;
+                    font-size: 16px;
                     line-height: 1.3;
                     box-sizing: border-box;
                     background: #fff;
@@ -1002,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     width: 100%;
                     max-width: 72mm;
                     margin: 0 auto;
-                    font-size: 14px;
+                    font-size: 16px;
                     line-height: 1.3;
                     box-sizing: border-box;
                     background: #fff;
