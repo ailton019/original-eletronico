@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const horaVenda = new Date().toLocaleTimeString('pt-BR');
 
             document.getElementById('comprovanteBody').innerHTML = `
-                <div id="comprovante" style="padding:15px 5px;font-family:'Courier New',monospace;max-width:400px;margin:0 auto;font-size:16px;line-height:1.3;color:#000;box-sizing:border-box;">
+                <div id="comprovante" style="padding:15px 5px;font-family:'Courier New',monospace;max-width:400px;margin:0 auto;font-size:16px;line-height:1.3;color:#000;box-sizing:border-box;font-weight:bold;">
 
                     <!-- CABEÇALHO -->
                     <div style="text-align:center;line-height:1.4;">
@@ -993,6 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     box-sizing: border-box;
                     background: #fff;
                     color: #000;
+                    font-weight: bold;
                 }
                 @media print {
                     html, body {
@@ -1029,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     box-sizing: border-box;
                     background: #fff;
                     color: #000;
+                    font-weight: bold;
                 }
                 @media print {
                     html, body {

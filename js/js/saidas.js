@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cancelada = venda.cancelado;
             
             const comprovanteHtml = `
-                <div id="comprovante" style="padding: 20px; font-family: 'Courier New', monospace; max-width: 800px; margin: 0 auto; font-size: 12px;">
+                <div id="comprovante" style="padding: 20px; font-family: 'Courier New', monospace; max-width: 800px; margin: 0 auto; font-size: 12px; font-weight: bold;">
                     <div style="text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px;">
                         <h2 style="margin: 0; font-size: 18px;">${configLoja.nome || 'Original Eletrônicos'}</h2>
                         <p style="margin: 5px 0;">CNPJ: ${configLoja.cnpj || '12.345.678/0001-90'}</p>
@@ -923,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <head>
                 <title>Comprovante de Venda</title>
                 <style>
-                    body { font-family: monospace; margin: 20px; }
+                    body { font-family: monospace; margin: 20px; font-weight: bold; }
                     @media print {
                         body { margin: 0; }
                         button { display: none; }
